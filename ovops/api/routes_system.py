@@ -92,9 +92,9 @@ async def test_llm_connectivity(req: TestLlmRequest):
     api_key = (req.api_key or "").strip()
     model = (req.model or settings.LLM_MODEL).strip()
     
-    # 若前端未传 key（如脱敏为空），优先读取内存或数据库中的真实 Key
-    if not api_key:
-        if settings.OPENAI_API_KEY:
+    # 若前端未传 key（如脱敏为空）或传入包含星号掩码，优先读取内存或数据库中的真实 Key
+    if not api_key or "*" in api_key:
+        if settings.OPENAI_API_KEY and "*" not in settings.OPENAI_API_KEY:
             api_key = settings.OPENAI_API_KEY.strip()
         else:
             try:
@@ -103,7 +103,7 @@ async def test_llm_connectivity(req: TestLlmRequest):
                 c.execute("SELECT value FROM system_configs WHERE key = 'llm_api_key'")
                 r = c.fetchone()
                 conn.close()
-                if r and r["value"]:
+                if r and r["value"] and "*" not in r["value"]:
                     api_key = r["value"].strip()
             except Exception:
                 pass
@@ -133,7 +133,7 @@ async def test_llm_connectivity(req: TestLlmRequest):
         payload = {
             "model": model,
             "messages": [{"role": "user", "content": "请回复'瓯阀智枢工业智能体连通就绪'"}],
-            "max_tokens": 80
+            "max_tokens": 160
         }
         async with httpx.AsyncClient(timeout=12.0) as client:
             resp = await client.post(url, json=payload, headers=headers)
