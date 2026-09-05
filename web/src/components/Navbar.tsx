@@ -1,7 +1,11 @@
 import React from 'react';
 import { ShieldAlert, Cpu, CheckCircle2, AlertOctagon, RefreshCw, Sun, Moon } from 'lucide-react';
+import { RoleSwitcher, UserRole } from './RoleSwitcher';
 
 interface NavbarProps {
+  currentRole: UserRole;
+  onRoleChange: (role: UserRole) => void;
+  onOpenSettings: () => void;
   faultMode: string;
   onSwitchMode: (mode: string) => void;
   wsConnected: boolean;
@@ -12,6 +16,9 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
+  currentRole,
+  onRoleChange,
+  onOpenSettings,
   faultMode,
   onSwitchMode,
   wsConnected,
@@ -22,7 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   return (
     <header className="w-full border-b border-zinc-200 dark:border-white/10 bg-white/95 dark:bg-[#09090B]/90 backdrop-blur-md sticky top-0 z-50 px-4 lg:px-6 py-3 transition-colors">
-      <div className="max-w-[1720px] mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div className="max-w-[1720px] mx-auto flex flex-wrap items-center justify-between gap-3">
         
         {/* 左侧：品牌与定位 */}
         <div className="flex items-center gap-3 min-w-0">
@@ -38,11 +45,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 永嘉泵阀产业标杆
               </span>
             </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap overflow-hidden text-ellipsis hidden md:block">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap overflow-hidden text-ellipsis hidden lg:block">
               跨系统数据穿透与智能运维 Agent · 打通 ERP 与现场工况孤岛
             </p>
           </div>
         </div>
+
+        {/* 角色端选择器 */}
+        <RoleSwitcher
+          currentRole={currentRole}
+          onRoleChange={onRoleChange}
+          onOpenSettings={onOpenSettings}
+        />
 
         {/* 中间：工况场景模拟切换 (注入器) */}
         <div className="flex items-center gap-1.5 p-1 rounded-lg bg-zinc-100 dark:bg-zinc-900/90 border border-zinc-200 dark:border-white/10 overflow-x-auto max-w-full flex-shrink-0">

@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
-import { DigitalTwinFlow } from './components/DigitalTwinFlow';
-import { TelemetryChart } from './components/TelemetryChart';
-import { AgentInvestigationPanel } from './components/AgentInvestigationPanel';
-import { ChannelSimulator } from './components/ChannelSimulator';
-import { ErpTable } from './components/ErpTable';
+import { UserRole } from './components/RoleSwitcher';
+import { ControlRoomView } from './views/ControlRoomView';
+import { TechnicianView } from './views/TechnicianView';
+import { SupervisorView } from './views/SupervisorView';
+import { AdminSettingsModal } from './views/AdminSettingsModal';
 
 export function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('ovops_theme');
     return (saved === 'light' || saved === 'dark') ? saved : 'dark';
   });
+
+  const [currentRole, setCurrentRole] = useState<UserRole>('OPERATOR');
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
 
   const [faultMode, setFaultMode] = useState<string>("NORMAL");
   const [wsConnected, setWsConnected] = useState<boolean>(false);
@@ -170,6 +173,9 @@ export function App() {
     <div className="min-h-screen bg-zinc-50 dark:bg-[#09090B] text-zinc-900 dark:text-zinc-100 flex flex-col font-sans transition-colors duration-200">
       {/* 顶部导航与控制器 */}
       <Navbar
+        currentRole={currentRole}
+        onRoleChange={setCurrentRole}
+        onOpenSettings={() => setIsAdminModalOpen(true)}
         faultMode={faultMode}
         onSwitchMode={handleSwitchMode}
         wsConnected={wsConnected}
@@ -181,35 +187,44 @@ export function App() {
 
       {/* 主体画布：Bento 工业栅格 */}
       <main className="flex-1 max-w-[1720px] w-full mx-auto p-4 lg:p-6 space-y-5">
-        
-        {/* 第一层：工业流体数字孪生拓扑 */}
-        <DigitalTwinFlow p201={p201} v102={v102} faultMode={faultMode} />
+        {currentRole === 'OPERATOR' && (
+          <ControlRoomView
+            p201={p201}
+            v102={v102}
+            faultMode={faultMode}
+            historyP201={historyP201}
+            historyV102={historyV102}
+            theme={theme}
+            investigation={investigation}
+            isInvestigating={isInvestigating}
+            approvalStatus={approvalStatus}
+            onApprove={handleApprove}
+            workOrders={workOrders}
+            spareParts={spareParts}
+            equipments={equipments}
+          />
+        )}
 
-        {/* 第二层：ECharts 工业级时序监测 */}
-        <TelemetryChart historyP201={historyP201} historyV102={historyV102} theme={theme} />
+        {currentRole === 'TECHNICIAN' && (
+          <TechnicianView
+            workOrders={workOrders}
+            onReload={loadErpData}
+          />
+        )}
 
-        {/* 第三层：LangGraph 智能体状态机执行与思维链 */}
-        <AgentInvestigationPanel
-          investigation={investigation}
-          isInvestigating={isInvestigating}
-        />
-
-        {/* 第四层：双通道主动协同模拟舱 (钉钉 & 飞书) */}
-        <ChannelSimulator
-          notifications={investigation?.channel_notifications ?? []}
-          onApprove={handleApprove}
-          workOrder={investigation?.work_order}
-          approvalStatus={approvalStatus}
-        />
-
-        {/* 第五层：ERP 核心资产与供应链穿透看板 */}
-        <ErpTable
-          workOrders={workOrders}
-          spareParts={spareParts}
-          equipments={equipments}
-        />
-
+        {currentRole === 'SUPERVISOR' && (
+          <SupervisorView
+            workOrders={workOrders}
+            onApproveOrder={handleApprove}
+          />
+        )}
       </main>
+
+      {/* 系统与算法后台配置模态窗口 */}
+      <AdminSettingsModal
+        isOpen={isAdminModalOpen}
+        onClose={() => setIsAdminModalOpen(false)}
+      />
 
       {/* 底部版权与背书 */}
       <footer className="w-full border-t border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 py-3 px-6 text-center text-xs text-zinc-500 font-mono transition-colors">

@@ -3,7 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from config.settings import settings
-from ovops.api import telemetry_router, agent_router, ws_router
+from ovops.api import (
+    telemetry_router,
+    agent_router,
+    ws_router,
+    system_router,
+    technician_router,
+    supervisor_router
+)
 from data.erp.init_db import init_erp_database
 
 # 检查并自动初始化 ERP SQLite
@@ -25,7 +32,7 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# 1. 注册 API 路由与 WebSocket
+# 1. 注册 API 路由
 @app.get("/api/health")
 def health_check():
     return {
@@ -38,8 +45,11 @@ def health_check():
 app.include_router(telemetry_router)
 app.include_router(agent_router)
 app.include_router(ws_router)
+app.include_router(system_router)
+app.include_router(technician_router)
+app.include_router(supervisor_router)
 
-# 2. 挂载前端静态页面（必须在所有 API 之后挂载，避免根路径拦截）
+# 2. 挂载前端静态页面（必须在所有 API 之后挂载）
 web_dist = settings.BASE_DIR / "web" / "dist"
 if web_dist.exists():
     app.mount("/", StaticFiles(directory=str(web_dist), html=True), name="static")

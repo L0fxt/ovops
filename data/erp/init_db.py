@@ -1,12 +1,13 @@
 import sqlite3
 import json
+import datetime
 from pathlib import Path
 
 DB_PATH = Path(__file__).parent / "ovops_erp.db"
 
 def init_erp_database():
     if DB_PATH.exists():
-        DB_PATH.unlink() # 重新生成干净的种子数据
+        DB_PATH.unlink() # 重新生成干净的数据库
         
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -61,7 +62,34 @@ def init_erp_database():
     )
     """)
 
-    # 插入设备种子数据（立足永嘉本土流体装备产业）
+    # 4. 系统动态配置表 (System Dynamic Configurations)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS system_configs (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        category TEXT NOT NULL,
+        description TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """)
+
+    # 5. 维保记录与现场技师实操留痕闭环表 (Maintenance Logs)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS maintenance_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_no TEXT NOT NULL,
+        equipment_id TEXT NOT NULL,
+        tech_name TEXT NOT NULL,
+        loto_confirmed INTEGER NOT NULL,
+        completed_steps TEXT NOT NULL,
+        photo_evidence TEXT,
+        tech_notes TEXT NOT NULL,
+        closed_at TEXT NOT NULL,
+        FOREIGN KEY (order_no) REFERENCES work_orders(order_no)
+    )
+    """)
+
+    # 插入设备种子数据
     equipments_data = [
         (
             "P-201",
@@ -139,76 +167,29 @@ def init_erp_database():
     ]
     cursor.executemany("INSERT INTO equipments VALUES (?,?,?,?,?,?,?,?,?,?)", equipments_data)
     
-    # 插入备品备件库存数据（永嘉本地配套供应链）
+    # 插入备品备件库存数据
     spare_parts_data = [
-        (
-            "SP-P201-IMP",
-            "P-201",
-            "超耐酸闭式高硅叶轮组件",
-            "YJ-IMP-100-A",
-            8,
-            3,
-            6800.0,
-            1,
-            "永嘉特种流体备件分发中心"
-        ),
-        (
-            "SP-P201-SEAL",
-            "P-201",
-            "集装式耐浓酸碳化硅动静环机械密封",
-            "YJ-MECM-80SiC",
-            15,
-            5,
-            3200.0,
-            1,
-            "永嘉县流体密封精工备件库"
-        ),
-        (
-            "SP-P201-BRG",
-            "P-201",
-            "角接触球轴承组",
-            "SKF-7312-BECBM",
-            20,
-            6,
-            850.0,
-            2,
-            "温州轴承特约供销中心"
-        ),
-        (
-            "SP-V102-PACK",
-            "V-102",
-            "抗挤出低泄漏柔性石墨填料组合环",
-            "YJ-PACK-DN100-HT",
-            24,
-            8,
-            420.0,
-            1,
-            "永嘉流程控制阀备品保障仓"
-        ),
-        (
-            "SP-V102-SEAT",
-            "V-102",
-            "司太立合金堆焊阀芯与套筒阀座对磨组",
-            "YJ-TRIM-Stellite6",
-            5,
-            2,
-            5600.0,
-            2,
-            "永嘉控制阀精密数控精工制造厂"
-        ),
-        (
-            "SP-V102-POS",
-            "V-102",
-            "数字式气动智能阀门定位器",
-            "YJ-SmartPos-02",
-            6,
-            2,
-            4800.0,
-            1,
-            "永嘉工业控制执行机构储备库"
-        )
+        ("SP-P201-IMP", "P-201", "超耐酸闭式高硅叶轮组件", "YJ-IMP-100-A", 8, 3, 6800.0, 1, "永嘉特种流体备件分发中心"),
+        ("SP-P201-SEAL", "P-201", "集装式耐浓酸碳化硅动静环机械密封", "YJ-MECM-80SiC", 15, 5, 3200.0, 1, "永嘉县流体密封精工备件库"),
+        ("SP-P201-BRG", "P-201", "角接触球轴承组", "SKF-7312-BECBM", 20, 6, 850.0, 2, "温州轴承特约供销中心"),
+        ("SP-V102-PACK", "V-102", "抗挤出低泄漏柔性石墨填料组合环", "YJ-PACK-DN100-HT", 24, 8, 420.0, 1, "永嘉流程控制阀备品保障仓"),
+        ("SP-V102-SEAT", "V-102", "司太立合金堆焊阀芯与套筒阀座对磨组", "YJ-TRIM-Stellite6", 5, 2, 5600.0, 2, "永嘉控制阀精密数控精工制造厂"),
+        ("SP-V102-POS", "V-102", "数字式气动智能阀门定位器", "YJ-SmartPos-02", 6, 2, 4800.0, 1, "永嘉工业控制执行机构储备库")
     ]
     cursor.executemany("INSERT INTO spare_parts VALUES (?,?,?,?,?,?,?,?,?)", spare_parts_data)
+    
+    # 插入系统动态配置默认值
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    configs_data = [
+        ("llm_base_url", "https://api.deepseek.com/v1", "LLM", "大语言模型 API Base URL", now_str),
+        ("llm_api_key", "", "LLM", "大语言模型 API 认证密钥 (留空则启用内置高保真机理引擎)", now_str),
+        ("llm_model", "deepseek-chat", "LLM", "选定推理模型 (DeepSeek-V3/R1、Qwen-2.5 等)", now_str),
+        ("dingtalk_webhook", "", "CHANNEL", "钉钉自定义机器人 Webhook URL", now_str),
+        ("feishu_webhook", "", "CHANNEL", "飞书自定义机器人 Webhook URL", now_str),
+        ("cavitation_tolerance", "0.5", "THRESHOLD", "离心泵气蚀安全裕度阈值 (米)", now_str),
+        ("valve_deadband_limit", "1.0", "THRESHOLD", "控制阀回差死区允许上限 (%)", now_str)
+    ]
+    cursor.executemany("INSERT INTO system_configs VALUES (?,?,?,?,?)", configs_data)
     
     conn.commit()
     conn.close()
