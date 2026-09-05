@@ -45,6 +45,7 @@ export const AutonomousPlannerConsole: React.FC<AutonomousPlannerConsoleProps> =
     "针对 P-201 特种耐酸工业离心泵入口压力骤降与高频微爆振动，自主核算汽蚀余量，穿透 ERP 匹配本地备件并生成抢修闭环工单"
   );
   const [expandedStep, setExpandedStep] = useState<string | null>("STEP-2");
+  const [showReasoning, setShowReasoning] = useState<boolean>(true);
 
   const presets = [
     {
@@ -66,6 +67,10 @@ export const AutonomousPlannerConsole: React.FC<AutonomousPlannerConsoleProps> =
 
   const taskTree: TaskStep[] = investigation?.task_tree || [];
   const totalElapsed = investigation?.total_elapsed_ms || 86;
+  const isRealLlm = investigation?.planner_mode === "REAL_LLM_DEEPSEEK";
+  const llmModel = investigation?.llm_model || "DeepSeek-V4";
+  const llmReasoning = investigation?.llm_reasoning;
+  const summaryText = investigation?.summary;
 
   const getCategoryBadge = (cat: string) => {
     switch (cat) {
@@ -122,13 +127,23 @@ export const AutonomousPlannerConsole: React.FC<AutonomousPlannerConsoleProps> =
             <BrainCircuit className="w-4 h-4" strokeWidth={1.5} />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-semibold text-sm lg:text-base text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                 智能体自主目标规划与跨平台求解中枢 (Autonomous Goal Planner)
               </h3>
               <span className="px-2 py-0.5 text-[10px] font-mono rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap flex-shrink-0">
                 Plan-and-Solve 架构
               </span>
+              {isRealLlm ? (
+                <span className="px-2 py-0.5 text-[10px] font-mono rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 whitespace-nowrap flex items-center gap-1 flex-shrink-0">
+                  <Sparkles className="w-3 h-3 text-blue-500 animate-pulse" strokeWidth={1.5} />
+                  {llmModel} 真实大模型在线驱动
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 text-[10px] font-mono rounded bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20 whitespace-nowrap flex items-center gap-1 flex-shrink-0">
+                  🛡️ 本地高保真机理引擎 (离线模式)
+                </span>
+              )}
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:block">
               理解复杂自然语言业务目标 · 自主拆解多阶段任务工序 · 动态调度跨系统工具闭环
@@ -192,8 +207,48 @@ export const AutonomousPlannerConsole: React.FC<AutonomousPlannerConsoleProps> =
         </button>
       </div>
 
+      {/* 大模型工程推演思维链 (DeepSeek CoT Reasoning) */}
+      {llmReasoning && (
+        <div className="border border-blue-200/80 dark:border-blue-900/50 rounded-lg overflow-hidden bg-blue-50/20 dark:bg-blue-950/20 shadow-xs transition-colors">
+          <div 
+            onClick={() => setShowReasoning(!showReasoning)}
+            className="px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-blue-100/40 dark:hover:bg-blue-900/30 transition-colors border-b border-blue-200/50 dark:border-blue-900/30"
+          >
+            <div className="flex items-center gap-2 text-xs font-medium text-blue-950 dark:text-blue-200">
+              <Sparkles className="w-3.5 h-3.5 text-blue-500" strokeWidth={1.5} />
+              <span>大模型工程推演思维链 (DeepSeek CoT Reasoning)</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                真实在线生成
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 font-mono">
+              <span>{showReasoning ? '收起思维链' : '展开思维链'}</span>
+              {showReasoning ? <ChevronDown className="w-3.5 h-3.5" strokeWidth={1.5} /> : <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />}
+            </div>
+          </div>
+          {showReasoning && (
+            <div className="p-3 text-xs font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto bg-white/70 dark:bg-zinc-950/70 selection:bg-blue-500/20">
+              {llmReasoning}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 智能体决议总结摘要 */}
+      {summaryText && (
+        <div className="p-3 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50/70 dark:bg-zinc-900/50 text-xs text-zinc-800 dark:text-zinc-200 space-y-1">
+          <div className="flex items-center gap-1.5 font-semibold text-zinc-900 dark:text-zinc-100">
+            <Activity className="w-3.5 h-3.5 text-emerald-500" strokeWidth={1.5} />
+            <span>智能体综合研判与处置决议:</span>
+          </div>
+          <p className="leading-relaxed font-sans text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+            {summaryText}
+          </p>
+        </div>
+      )}
+
       {/* 自主规划任务树 (Dynamic Task Tree DAG) */}
-      <div className="space-y-2 pt-2">
+      <div className="space-y-2 pt-1">
         <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-medium px-1">
           <span>自主拆解多步骤业务任务树与跨平台工具调度实况:</span>
           <span className="font-mono text-[11px]">点击步骤可展开查看入参与底层工具载荷</span>
