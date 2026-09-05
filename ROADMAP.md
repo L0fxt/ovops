@@ -1,117 +1,462 @@
-# 瓯阀智枢 (OuValve-Ops) 产品研发路线图与系统完善方案
-**OuValve-Ops: Enterprise Roadmap & Multi-Role Architecture Specification**
+# 瓯阀智枢 (OuValve-Ops) 生产级演进路线图
+**OuValve-Ops: Production-Grade Enterprise Integration Roadmap**
 
-> **项目愿景**：立足温州永嘉“中国泵阀之乡”，打造集“工况时序监测、工业物理机理计算、LangGraph 任务自主拆解、ERP 业务穿透、移动端主动触达与数据闭环”于一体的企业级智能运维（PdM）中枢。
+> **项目定位**：立足温州永嘉"中国泵阀之乡"，打造 **"工况实时感知 → 物理机理诊断 → 智能体自主规划 → ERP 业务穿透 → 移动端协同闭环"** 全链路工业智能运维 Agent。
+>
+> **本路线图核心目标**：将当前大赛演示原型系统，逐步演进为可对接企业真实生产环境的**生产级产品**，完成从 Mock 数据驱动到企业真实 API 驱动的全面切换。
 
 ---
 
-## 🗺️ 整体架构与全景蓝图
+## 📊 一、当前系统完成度总览
+
+### 已交付能力矩阵
+
+| 能力维度 | 完成度 | 当前实现方式 | 生产级目标 |
+| :--- | :---: | :--- | :--- |
+| 智能体自主规划 (Autonomous Planner) | ✅ 100% | DeepSeek 真实大模型 CoT + 离线机理兜底 | 稳定生产可用 |
+| 原生 Function Calling 多轮工具调度 | ✅ 100% | 7 大工具 Schema 注册 + 动态调度 | 稳定生产可用 |
+| 物理机理求解引擎 | ✅ 100% | NumPy/SciPy (NPSHa、FFT、回差拟合) | 算法成熟，可直接对接真实数据 |
+| ERP 数据库穿透 | ⚠️ 70% | 内置 SQLite 模拟种子数据 | **需对接企业真实 ERP 数据库/API** |
+| 设备遥测时序数据 | ⚠️ 30% | 纯数学仿真器 (`fault_generator.py`) | **需对接企业设备数据查询接口** |
+| RAG 专家知识库 | ⚠️ 40% | 2 条硬编码知识条目 | **需向量化真实 SOP 文档** |
+| 钉钉/飞书协同通道 | ✅ 90% | 真实 Webhook + multi_url 跳转审批 | 生产可用，需企业自建应用升级 |
+| 四大角色端前端 | ✅ 95% | 完整 RBAC + 全端 UI | 需动态设备列表替换硬编码 |
+| 供应链地图 | ⚠️ 50% | 4 个硬编码永嘉备件仓库节点 | 需对接企业真实供应商库存 |
+| 主管决策 KPI | ⚠️ 60% | 部分硬编码 MTBF/MTTR | 需真实统计计算 |
+
+---
+
+## 🔍 二、假数据 / Mock 模块全量审计清单
+
+> [!CAUTION]
+> 以下模块使用了硬编码/模拟数据，**在对接企业真实环境前必须逐一替换**。
+
+### 2.1 设备遥测数据层 — 全量模拟 🔴
+
+| 文件 | 行号 | Mock 内容 | 生产级替换方案 |
+| :--- | :---: | :--- | :--- |
+| [fault_generator.py](file:///Users/paistarss/product/bengfa/ovops/simulator/fault_generator.py) | 全文件 | P-201 和 V-102 的所有传感器数据均为数学公式 + 高斯噪声随机生成 | 对接企业设备数据查询 API |
+| [routes_telemetry.py](file:///Users/paistarss/product/bengfa/ovops/api/routes_telemetry.py) | L10-28 | `/api/telemetry/latest` 和 `/history` 直接从仿真器取数 | 改为从企业 API 拉取 + 本地缓存 |
+
+**具体模拟项**：
+- 离心泵入口压力 `inlet_pressure_kpa`：`125.0 + 3.0*sin(t/8)` + 高斯噪声
+- 离心泵振动 `vibration_rms_mms`：`1.6 + noise(0.1)` / 故障时 `7.4`
+- 离心泵流量 `flow_rate_m3h`：`120.0 + noise(1.5)`
+- 离心泵轴承温度 `bearing_temp_c`：`53.0 + noise(0.3)`
+- 控制阀设定值/实际值 `sp_percent/pv_percent`：周期三角波 + 噪声
+- 控制阀回差 `deadband_pct`：`0.5 + noise(0.05)` / 故障时 `5.8`
+- 高频振动波形 `generate_vibration_waveform()`：`sin(2π*48.3*t)` 合成
+
+### 2.2 ERP 种子数据层 — 硬编码 🟡
+
+| 文件 | 行号 | Mock 内容 | 说明 |
+| :--- | :---: | :--- | :--- |
+| [init_db.py](file:///Users/paistarss/product/bengfa/data/erp/init_db.py) | L93-167 | 4 台设备（P-201, V-102, P-202, V-103）固化种子 | 设备台账应从企业 ERP 同步 |
+| [init_db.py](file:///Users/paistarss/product/bengfa/data/erp/init_db.py) | L171-178 | 6 条备品备件库存记录 | 备件库存应从企业供应链系统同步 |
+| [init_db.py](file:///Users/paistarss/product/bengfa/data/erp/init_db.py) | L183-193 | 系统配置默认值 | 可保留，首次启动初始化用 |
+
+**关键点**：设备编号、名称、型号、制造商、额定参数、库存数量均为**手工编造**。
+
+### 2.3 RAG 知识库 — 硬编码嵌入 🔴
+
+| 文件 | 行号 | Mock 内容 |
+| :--- | :---: | :--- |
+| [rag_tools.py](file:///Users/paistarss/product/bengfa/ovops/tools/rag_tools.py) | L5-33 | 仅 2 条知识条目硬编码在 Python List 中（`KB-PUMP-001` 离心泵气蚀规程、`KB-VALVE-002` 控制阀卡阻规程）|
+| [rag_tools.py](file:///Users/paistarss/product/bengfa/ovops/tools/rag_tools.py) | L43-48 | 检索为简单 `keywords in query` 关键词匹配，非向量语义检索 |
+
+### 2.4 物理机理计算 — 硬编码常量 🟡
+
+| 文件 | 行号 | 硬编码内容 |
+| :--- | :---: | :--- |
+| [physics_tools.py](file:///Users/paistarss/product/bengfa/ovops/tools/physics_tools.py) | L23 | 介质密度 `1800.0`（P-201 浓硫酸）/ `1000.0`（其他）写死 |
+| [physics_tools.py](file:///Users/paistarss/product/bengfa/ovops/tools/physics_tools.py) | L30 | 管道直径 `DN100 = 0.1m` 写死 |
+| [physics_tools.py](file:///Users/paistarss/product/bengfa/ovops/tools/physics_tools.py) | L36 | 额定 NPSHr `3.2m` 写死（应从设备铭牌读取） |
+| [physics_tools.py](file:///Users/paistarss/product/bengfa/ovops/tools/physics_tools.py) | L126 | 泵基频 `48.3 Hz` (2900 RPM) 写死 |
+
+### 2.5 Agent 规划器 — 硬编码分支 🟡
+
+| 文件 | 行号 | 硬编码内容 |
+| :--- | :---: | :--- |
+| [planner.py](file:///Users/paistarss/product/bengfa/ovops/agent/planner.py) | L61-64 | 设备推断仅支持 P-201 和 V-102 两个位号的关键词匹配 |
+| [planner.py](file:///Users/paistarss/product/bengfa/ovops/agent/planner.py) | L281-286 | 物理诊断缺省分支仅覆盖"气蚀"和"卡阻"两种故障 |
+| [planner.py](file:///Users/paistarss/product/bengfa/ovops/agent/planner.py) | L291-294 | 兜底备件清单写死 2 种预案 |
+| [planner.py](file:///Users/paistarss/product/bengfa/ovops/agent/planner.py) | L301 | 技师姓名写死 `"陈工(资深运维技师)"` |
+
+### 2.6 主管决策看板 — 硬编码 KPI 🟡
+
+| 文件 | 行号 | 硬编码内容 |
+| :--- | :---: | :--- |
+| [routes_supervisor.py](file:///Users/paistarss/product/bengfa/ovops/api/routes_supervisor.py) | L37-38 | `mtbf_hours: 2480`、`mttr_hours: 1.6` 为静态常量 |
+| [routes_supervisor.py](file:///Users/paistarss/product/bengfa/ovops/api/routes_supervisor.py) | L30-31 | 停机损失估算 `每张工单 × 125000 元` 为固定系数 |
+| [routes_supervisor.py](file:///Users/paistarss/product/bengfa/ovops/api/routes_supervisor.py) | L46-88 | 供应链地图 4 个仓库节点全为硬编码 JSON |
+
+### 2.7 前端 — 硬编码设备/场景 🟡
+
+| 文件 | 行号 | 硬编码内容 |
+| :--- | :---: | :--- |
+| [AutonomousPlannerConsole.tsx](file:///Users/paistarss/product/bengfa/web/src/components/AutonomousPlannerConsole.tsx) | L45-64 | 3 个预设运维目标场景 hardcode P-201/V-102 |
+| [DigitalTwinFlow.tsx](file:///Users/paistarss/product/bengfa/web/src/components/DigitalTwinFlow.tsx) | L75-83 | 数字孪生流程图写死 P-201 节点 |
+| [TelemetryChart.tsx](file:///Users/paistarss/product/bengfa/web/src/components/TelemetryChart.tsx) | L29, L156 | 时序图表标题写死 P-201 |
+| [Navbar.tsx](file:///Users/paistarss/product/bengfa/web/src/components/Navbar.tsx) | L81-90 | 故障注入按钮写死 P-201 / V-102 |
+| [ChannelSimulator.tsx](file:///Users/paistarss/product/bengfa/web/src/components/ChannelSimulator.tsx) | L52 | 告警标题写死 P-201 |
+
+---
+
+## 🏢 三、企业对接架构设计
+
+### 3.1 企业侧提供能力
+
+企业提供**一个统一的设备数据查询 HTTP API**，我方系统通过该接口获取所需数据：
 
 ```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                        瓯阀智枢 统一入口 & 动态角色权限中枢 (RBAC)                       │
-└───────────────────────────────────────────┬────────────────────────────────────────────┘
-                                            │
-        ┌───────────────────┬───────────────┴───────┬────────────────────┬───────────────┐
-        ▼                   ▼                       ▼                    ▼               ▼
-【角色 A: 中控调度员】  【角色 B: 现场维保技师】  【角色 C: 维保主管/厂长】  【角色 D: 系统管理员】  【全景演示模式】
-  数字孪生大屏          移动端防爆工作台        Kanban审批 / 供应链       LLM / 钉飞 / 算法配置    汇报与比赛路演
-  工况秒级监控          SOP打钩 / 闭环回填      健康度与挽回损失ROI       热重载 / 连通性测试      一键故障演示
+┌─────────────────────────────────────────────────────────────────────┐
+│                       企业侧 (数据提供方)                            │
+│                                                                     │
+│   已有系统    ─────►  统一设备数据查询 API  ◄────── 我方系统调用     │
+│   ┌─────────┐        ┌─────────────────────┐      ┌──────────────┐ │
+│   │ DCS/PLC │        │ GET /api/devices     │      │ 瓯阀智枢     │ │
+│   │ SCADA   │───────►│ GET /api/devices/:id │◄─────│ 数据采集层   │ │
+│   │ ERP     │        │ GET /api/devices/:id/│      └──────────────┘ │
+│   │ 供应链   │        │     realtime-data    │                       │
+│   └─────────┘        └─────────────────────┘                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 3.2 企业 API 对接适配层设计
+
+```
+我方系统新增模块：
+
+ovops/
+├── adapters/                        ← 【新增】企业 API 适配层
+│   ├── __init__.py
+│   ├── base_adapter.py              ← 适配器抽象基类 (ABC)
+│   ├── enterprise_api_client.py     ← 企业设备数据 API HTTP Client
+│   ├── data_mapper.py               ← 企业字段 → 内部标准字段映射
+│   ├── cache.py                     ← 本地缓存层 (Redis/SQLite TTL)
+│   └── health_checker.py            ← API 可用性探活与自动降级
+│
+├── simulator/
+│   └── fault_generator.py           ← 保留，作为企业 API 不可达时的降级数据源
+```
+
+### 3.3 双源数据架构：企业 API 优先，仿真器兜底
+
+```
+               ┌──────────────────────────────────┐
+               │   数据源选择器 (DataSourceRouter)  │
+               └───────┬──────────┬───────────────┘
+                       │          │
+            ┌──────────▼──┐  ┌───▼──────────────┐
+            │ 企业 API     │  │ 本地仿真器        │
+            │ (优先级 P0)  │  │ (降级兜底 P1)     │
+            │              │  │                   │
+            │ HTTP Client  │  │ fault_generator   │
+            │ + 字段映射   │  │ + 随机噪声合成    │
+            │ + TTL 缓存   │  │                   │
+            └──────────────┘  └───────────────────┘
+                       │          │
+                       ▼          ▼
+               ┌──────────────────────────────────┐
+               │  统一内部数据模型 (标准化测点结构)  │
+               │  inlet_pressure_kpa, vibration_.. │
+               └──────────────────────────────────┘
+```
+
+### 3.4 企业 API 字段映射配置 (示例)
+
+```yaml
+# config/enterprise_api_mapping.yaml
+enterprise_api:
+  base_url: "https://enterprise.example.com/api"  # 企业 API 地址
+  auth:
+    type: "bearer"  # 或 "api_key" / "basic"
+    token_env: "ENTERPRISE_API_TOKEN"  # Token 从环境变量读取
+
+  endpoints:
+    device_list: "/devices"
+    device_detail: "/devices/{device_id}"
+    realtime_data: "/devices/{device_id}/realtime-data"
+    history_data: "/devices/{device_id}/history?start={start}&end={end}"
+
+  field_mapping:
+    # 企业字段名 → 瓯阀智枢内部标准字段名
+    device_id: "equipment_id"
+    inlet_pressure: "inlet_pressure_kpa"
+    outlet_pressure: "outlet_pressure_kpa"
+    vibration_value: "vibration_rms_mms"
+    temperature: "bearing_temp_c"
+    flow: "flow_rate_m3h"
+
+  polling:
+    interval_seconds: 2    # 轮询间隔
+    timeout_seconds: 5     # 单次请求超时
+    retry_count: 3         # 失败重试次数
+    fallback_to_simulator: true  # 超时后自动降级到仿真器
 ```
 
 ---
 
-## 👥 一、 四大核心角色端分离设计 (Multi-Role Portals)
+## 📅 四、生产级演进里程碑 (Production Roadmap)
 
-系统采用 **“按使用场景与责任层级物理隔离”** 的设计哲学，在界面右上角支持一键无缝切换角色，满足不同工种的专业交互需求：
+### Phase 7：企业设备数据 API 对接层 `[P0 最高优先]`
 
-### 1. 角色 A：车间值班员 / 中控调度员 (Control Room Operator)
-* **使用场景**：7×24 小时坚守中控室，负责全厂流体管网平稳运行与早期隐患捕获。
-* **核心功能模块**：
-  * **工况数字孪生大屏**：实时监测特种高硅耐酸离心泵（P-201）、高压套筒气动调节阀（V-102）等核心装备秒级时序；
-  * **一键故障求助与应急接管**：异常告警触发时，一键唤醒 Agent 启动水力机理核算；
-  * **DCS 参数联动建议**：查看 Agent 给出的工艺参数临时自愈建议（如微调储罐吸入液位、调降变频器转速）。
+> **目标**：替换仿真器，从企业真实设备数据查询接口获取实时/历史传感器数据。
+> **预计工期**：3-5 个工作日
 
-### 2. 角色 B：现场维保技师 (Field Maintenance Technician - 移动端防爆终端视窗)
-* **使用场景**：手持工业防爆平板（PAD）或手机，深入生产装置现场检修排障。
-* **核心功能模块**：
-  * **我的待办工单卡片**：展示指派给本人的高危/紧急工单，查看设备位号、地理位置与排障优先级；
-  * **LOTO 安全作业票核验**：进入维修前强制核验“断电上锁、工艺盲板隔离、动火作业票”；
-  * **SOP 交互式逐步打钩**：依照特种耐酸离心泵与高压调节阀行业权威规程标准，分阶段打钩确认排查动作；
-  * **备件核销与闭环数据反哺**：扫码确认安装原厂高硅叶轮或特种填料，拍照上传检修实物，录入排障实操笔记，提交后**自动闭环沉淀至专家经验库**。
-
-### 3. 角色 C：维保主管 / 设备厂长 (Maintenance Supervisor / Plant Manager)
-* **使用场景**：掌控全厂装备运行可靠性、审批大额维保与停机申请、调度永嘉本地供应链。
-* **核心功能模块**：
-  * **Kanban 审批看板**：分列展示 `待审批 (Pending Approval)`、`备件已就绪 (Ready)`、`检修中 (In Progress)`、`已闭环 (Closed)`，支持一键批量核准并出库备件；
-  * **永嘉 2 小时应急备件供应链地图**：在永嘉县地图（瓯北街道、中国泵阀城、三江街道）可视化标注特种流体备件原厂仓、流程控制装备智能分发库、密封件配套基地实时库存与 45 分钟加急配送路线；
-  * **全厂设备健康度与 ROI 决策报表**：
-    * 离心泵/控制阀健康评分排行榜；
-    * MTBF（平均无故障时间）、MTTR（平均修复时间）统计；
-    * **挽回停机经济损失大盘**（基于预测性维护避免非计划停产，折算避免的物料报废与停工损失）。
-
-### 4. 角色 D：系统与算法管理员 (System Administrator / AI Engineer)
-* **使用场景**：管理后台底层技术基座、大模型接口、协作通道配置与自研工具箱。
-* **核心功能模块**：
-  * **大模型服务动态配置**：在线配置 `API_KEY`、`BASE_URL`、模型下拉选择（DeepSeek-V3/R1、通义千问、Claude、Gemini 或离线 Mock 模式），提供**“测试连通性 (Ping)”**；
-  * **多端协同通道配置**：在线配置钉钉机器人 Webhook & 加签密钥、飞书机器人 Webhook，提供**“发送测试卡片”**功能；
-  * **工业机理参数调优**：调整气蚀判据余量、控制阀回差国标限值（1.0%）、振动 ISO 报警阈值；
-  * **LangGraph 状态机流转监控**：查看智能体各节点执行延迟、Token 消耗及调用日志。
+| # | 子任务 | 优先级 | 说明 |
+| :---: | :--- | :---: | :--- |
+| 7.1 | **设计企业 API 适配层抽象接口** (`adapters/base_adapter.py`) | P0 | 定义 `get_device_list()`、`get_realtime_data(device_id)`、`get_history_data(device_id, start, end)` 标准抽象方法 |
+| 7.2 | **实现企业 HTTP API Client** (`adapters/enterprise_api_client.py`) | P0 | 基于 `httpx.AsyncClient`，支持 Bearer Token / API Key 鉴权、超时重试、连接池 |
+| 7.3 | **实现字段映射层** (`adapters/data_mapper.py`) | P0 | 读取 YAML 映射配置，将企业不规范/异构字段名统一转换为内部标准模型字段 |
+| 7.4 | **实现本地缓存层** (`adapters/cache.py`) | P0 | SQLite 或 Redis 缓存最近 N 秒数据，避免高频重复请求企业 API；支持 TTL 过期策略 |
+| 7.5 | **实现数据源路由器** (`adapters/__init__.py` 中的 `DataSourceRouter`) | P0 | 企业 API 优先 → 超时/异常自动降级到仿真器 → 恢复后自动切回 |
+| 7.6 | **重构 `routes_telemetry.py`** | P0 | `/api/telemetry/latest` 和 `/history` 改为从 `DataSourceRouter` 取数，而非直接调用 `telemetry_sim` |
+| 7.7 | **重构物理工具入参来源** | P0 | `calculate_pump_cavitation` 等工具函数的入口数据改为从适配层传入，而非从仿真器 |
+| 7.8 | **API 可用性探活与监控** (`adapters/health_checker.py`) | P0 | 定时健康检查企业 API 端点，记录延迟与成功率，前端管理面板可视化 |
+| 7.9 | **后台管理面板增加"企业 API 配置"** | P0 | 在 AdminSettingsModal 新增 Tab，用于配置企业 API 地址、Token、轮询间隔、字段映射、测试连通性 |
+| 7.10 | **保留故障注入演示模式** | P1 | 在管理面板增加"数据源模式切换"：`企业API`/`仿真器`/`混合模式(API优先)`，方便展演与调试 |
 
 ---
 
-## ⚙️ 二、 后台动态配置中枢技术规范 (Admin Config Hub)
+### Phase 8：ERP 设备台账与备件库动态同步 `[P0 最高优先]`
 
-为实现免重启服务、热重载生效的企业级体验，采用如下数据持久化与调度架构：
+> **目标**：设备资产主数据与备品备件库存从企业 API 实时同步，替代 SQLite 静态种子数据。
+> **预计工期**：2-3 个工作日
+
+| # | 子任务 | 优先级 | 说明 |
+| :---: | :--- | :---: | :--- |
+| 8.1 | **设备台账同步服务** | P0 | 启动时 + 定时（每 5 分钟）从企业 API `/devices` 拉取设备清单，UPSERT 到本地 SQLite `equipments` 表 |
+| 8.2 | **备品备件库存同步** | P0 | 从企业 API 获取设备关联备件信息并同步到 `spare_parts` 表 |
+| 8.3 | **设备额定参数动态读取** | P0 | 物理计算所需的 NPSHr、管径、转速、介质密度等参数从设备铭牌/台账字段读取，**不再硬编码** |
+| 8.4 | **前端动态设备列表** | P0 | 数字孪生大屏、故障注入按钮、规划器预设场景改为从 `/api/erp/equipments` 动态渲染，不再写死 P-201/V-102 |
+| 8.5 | **增量同步与冲突处理** | P1 | 支持增量更新（`updated_after` 参数），处理本地工单与远端状态冲突 |
+| 8.6 | **同步日志与审计** | P1 | 记录每次同步的变更数量、耗时、异常，管理面板可视化 |
+
+---
+
+### Phase 9：RAG 知识库生产化 `[P0 高优先]`
+
+> **目标**：将硬编码的 2 条知识条目替换为可扩展的向量检索引擎，支持导入企业真实 SOP 文档。
+> **预计工期**：3-4 个工作日
+
+| # | 子任务 | 优先级 | 说明 |
+| :---: | :--- | :---: | :--- |
+| 9.1 | **引入轻量向量存储** | P0 | 选型：ChromaDB (轻量嵌入式) 或 FAISS (高性能)，替代 Python List 硬编码 |
+| 9.2 | **文档导入管线** | P0 | 支持上传 PDF/DOCX/TXT 格式的企业设备 SOP / 维保手册，自动分块 + Embedding |
+| 9.3 | **Embedding 模型集成** | P0 | 调用 DeepSeek Embedding API 或 BGE-M3 本地模型，将文档块向量化存储 |
+| 9.4 | **语义检索替换关键词匹配** | P0 | `search_maintenance_sop()` 改为 Top-K 向量余弦相似度检索 + 重排序 |
+| 9.5 | **管理面板：知识库管理** | P1 | 上传/删除/预览 SOP 文档列表，查看文档分块数与 Embedding 状态 |
+| 9.6 | **知识库版本管理** | P2 | 支持多版本 SOP 规程，标记生效版本 |
+
+---
+
+### Phase 10：物理机理计算参数化 `[P1 高优先]`
+
+> **目标**：消除物理工具中的硬编码常量，所有工程参数从设备铭牌动态读取。
+> **预计工期**：1-2 个工作日
+
+| # | 子任务 | 优先级 | 说明 |
+| :---: | :--- | :---: | :--- |
+| 10.1 | **NPSHr 从设备台账读取** | P0 | 不再写死 `3.2m`，从 `equipments.rated_params` JSON 中提取 `npsh_r` 字段 |
+| 10.2 | **介质密度参数化** | P0 | 不再 `if P-201 then 1800` 分支写死，从设备关联的介质物性数据库获取 |
+| 10.3 | **管径/转速/基频参数化** | P1 | 管道直径 DN、额定转速 RPM 从设备台账读取，FFT 基频自动计算 `RPM/60` |
+| 10.4 | **机理计算结果持久化** | P1 | 每次物理诊断结果写入 `diagnosis_logs` 表，用于趋势分析与 MTBF 统计 |
+
+---
+
+### Phase 11：主管决策看板真实化 `[P1 中优先]`
+
+> **目标**：KPI 数据从真实工单统计与设备运行记录计算得出，替代硬编码常数。
+> **预计工期**：2 个工作日
+
+| # | 子任务 | 优先级 | 说明 |
+| :---: | :--- | :---: | :--- |
+| 11.1 | **MTBF 真实统计** | P1 | 基于设备运行小时数与故障工单数计算 `MTBF = 总运行时长 / 故障次数` |
+| 11.2 | **MTTR 真实统计** | P1 | 基于工单 `created_at` 到 `CLOSED` 的时间差均值计算 |
+| 11.3 | **停机损失动态估算** | P1 | 从企业提供的单位时间产值参数 × 避免的停机时长计算 |
+| 11.4 | **供应链地图对接真实供应商** | P2 | 从企业供应商系统 API 获取仓库坐标、库存量、配送 ETA |
+| 11.5 | **健康度评分算法升级** | P1 | 综合近 30 天振动趋势、故障频率、运行小时数等多维指标动态计算，替代静态 `96.5` 分 |
+
+---
+
+### Phase 12：Agent 规划器泛化 `[P1 中优先]`
+
+> **目标**：消除规划器中对特定设备编号和故障类型的硬编码分支，使其支持任意设备、任意故障。
+> **预计工期**：2-3 个工作日
+
+| # | 子任务 | 优先级 | 说明 |
+| :---: | :--- | :---: | :--- |
+| 12.1 | **设备推断泛化** | P1 | 从 `if "V-102" in goal` 分支升级为从设备台账全量模糊匹配 + LLM 意图识别 |
+| 12.2 | **故障类型推断泛化** | P1 | 不再限于"气蚀"和"卡阻"两种，由 LLM 结合设备类型与遥测特征动态判定 |
+| 12.3 | **备件推荐泛化** | P1 | 根据设备-备件关联关系从 ERP 动态查询推荐，而非写死 2 种预案 |
+| 12.4 | **技师分配动态化** | P2 | 从技师排班表或企业人员 API 查询当值技师，而非写死"陈工" |
+| 12.5 | **离线兜底引擎泛化** | P2 | 在无 LLM 模式下，基于设备类型自动选择匹配的物理机理工具链 |
+
+---
+
+### Phase 13：安全加固与多租户 `[P1 中优先]`
+
+> **预计工期**：3-4 个工作日
+
+| # | 子任务 | 优先级 | 说明 |
+| :---: | :--- | :---: | :--- |
+| 13.1 | **用户认证系统** | P1 | JWT Token 认证，替代当前完全无鉴权的 API |
+| 13.2 | **RBAC 权限守卫** | P1 | 中控员只读遥测/Agent，技师只能操作自己的工单，主管可审批，管理员全权限 |
+| 13.3 | **API 密钥加密存储** | P1 | LLM API Key 与企业 Token 改用 AES-256 加密存储于 SQLite，运行时解密 |
+| 13.4 | **操作审计日志** | P1 | 所有工单审批、配置变更、Agent 触发记录完整审计轨迹 |
+| 13.5 | **请求频率限制** | P2 | 对企业 API 调用频率设上限，防止异常循环暴刷 |
+| 13.6 | **多租户隔离** (远期) | P2 | 支持多家永嘉泵阀企业独立实例或数据隔离部署 |
+
+---
+
+### Phase 14：生产部署与运维 `[P1 中优先]`
+
+> **预计工期**：2-3 个工作日
+
+| # | 子任务 | 优先级 | 说明 |
+| :---: | :--- | :---: | :--- |
+| 14.1 | **Docker 容器化** | P1 | Dockerfile + docker-compose.yml (Python 后端 + Node 前端构建 + SQLite 数据卷) |
+| 14.2 | **环境变量规范化** | P1 | 所有敏感配置（企业 API Token、LLM Key、数据库路径）通过 `.env` 或 K8s Secret 注入 |
+| 14.3 | **健康检查与监控** | P1 | Prometheus metrics 端点 + Grafana 仪表盘（API 延迟、企业 API 成功率、Agent 调度耗时） |
+| 14.4 | **日志结构化** | P1 | 全链路 JSON 格式结构化日志 (loguru/structlog)，支持 ELK 采集 |
+| 14.5 | **数据库迁移工具** | P1 | Alembic 管理 SQLite → PostgreSQL 迁移脚本 |
+| 14.6 | **CI/CD 流水线** | P2 | GitHub Actions: lint → test → build → deploy |
+
+---
+
+### Phase 15：前端生产级升级 `[P2 低优先]`
+
+| # | 子任务 | 优先级 | 说明 |
+| :---: | :--- | :---: | :--- |
+| 15.1 | **动态设备选择器** | P1 | 所有硬编码 P-201/V-102 的地方改为从 API 动态加载设备下拉列表 |
+| 15.2 | **数字孪生流程图动态渲染** | P2 | 根据设备拓扑关系动态生成流程图节点，而非写死 |
+| 15.3 | **时序图表多设备支持** | P2 | 支持切换查看任意设备的时序曲线 |
+| 15.4 | **国际化 (i18n)** | P2 | 中/英文切换支持 |
+| 15.5 | **Code Splitting** | P2 | 按角色拆分代码包，减小首屏体积 |
+
+---
+
+## 🔗 五、企业对接实施步骤（推荐执行顺序）
 
 ```
-┌────────────────────────────────────────────────────────┐
-│         前端: 系统设置面板 (System Settings Modal)       │
-│  - 大模型选择与密钥 | 钉钉/飞书 Webhook | 一键连通性测试 │
-└───────────────────────────┬────────────────────────────┘
-                            │ POST /api/system/config
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│         后端: 配置持久化与热重载中枢 (Settings Manager)   │
-│  - 优先从 SQLite 表 `system_configs` 读取最新配置       │
-│  - 内存单例热重载，无需重启 Uvicorn 服务               │
-│  - POST /api/system/test-llm (测试大模型响应延迟)        │
-│  - POST /api/system/test-channel (测试钉飞推送卡片)     │
-└────────────────────────────────────────────────────────┘
+Week 1 ──────────────────────────────────────────────────────────────────
+│
+├─ Day 1-2: Phase 7.1 ~ 7.5  ← 搭建企业 API 适配层框架 (P0)
+│           与企业确认 API 文档、鉴权方式、字段含义
+│
+├─ Day 3:   Phase 7.6 ~ 7.8  ← 重构遥测数据源，接入真实设备数据 (P0)
+│
+├─ Day 4:   Phase 8.1 ~ 8.4  ← 设备台账与备件库同步 (P0)
+│
+├─ Day 5:   Phase 10.1 ~ 10.3 ← 物理计算参数化 (P0/P1)
+│
+
+Week 2 ──────────────────────────────────────────────────────────────────
+│
+├─ Day 6-7: Phase 9.1 ~ 9.4  ← RAG 向量化知识库落地 (P0)
+│
+├─ Day 8:   Phase 11.1 ~ 11.3 ← 主管 KPI 真实化 (P1)
+│
+├─ Day 9:   Phase 12.1 ~ 12.3 ← Agent 泛化 (P1)
+│
+├─ Day 10:  Phase 7.9, 7.10   ← 管理面板企业 API 配置 & 联调验收 (P0)
+│
+
+Week 3 ──────────────────────────────────────────────────────────────────
+│
+├─ Day 11-12: Phase 13.1 ~ 13.4 ← 安全加固 (P1)
+│
+├─ Day 13-14: Phase 14.1 ~ 14.5 ← 容器化部署 (P1)
+│
+├─ Day 15:    Phase 15.1       ← 前端动态设备 + 全量回归测试
+│
+└─ 🎯 联调上线：可在企业内网环境部署运行，接收真实传感器数据并闭环处置
 ```
 
 ---
 
-## 📅 三、 研发里程碑与实施进展 (Milestones & Progress)
+## 📐 六、企业 API 接口规约建议 (供企业侧参考)
 
-| 阶段 | 核心开发任务 | 交付成果与当前状态 |
-| :--- | :--- | :---: |
-| **Phase 1：配置中枢与多角色底座 (RBAC)** | 1. SQLite 建立 `system_configs` 安全表与用户角色定义；<br>2. 后端开发系统配置热读取、脱敏掩码穿透与连通性自诊断接口；<br>3. 前端导航栏加入四大角色无缝切换器与后台管理弹窗。 | **✅ 100% 已交付**<br>(支持中控/技师/主管/管理员 4 角色视图，支持自由填报模型与 Key) |
-| **Phase 2：现场技师移动端工作台** | 1. 开发适合工业防爆平板/手机的高密度维保工单卡片；<br>2. 实现 LOTO 挂牌上锁安全强制核验；<br>3. 实现永嘉权威规程 SOP 交互式逐步打钩与实物拍照/排障实操笔记闭环沉淀。 | **✅ 100% 已交付**<br>(技师端闭环已全通，数据反哺专家经验库) |
-| **Phase 3：主管看板与永嘉供应链地图** | 1. 实现 4 列 Kanban 维保工单全生命周期看板（待审批/已就绪/检修中/已闭环）；<br>2. 绘制永嘉 2 小时应急备件供应链 GIS 分布大图；<br>3. 建立全厂设备健康度评分榜与避免停机挽回经济损失 (ROI) 大盘。 | **✅ 100% 已交付**<br>(产业协同深度可视化，突出永嘉本地供应链优势) |
-| **Phase 4：Agent 自主规划与真大模型驱动** | 1. 落地 Autonomous Goal Planner 自主目标规划大脑；<br>2. 接入 DeepSeek 官方生产模型 (`deepseek-v4-pro` / `flash`)，支持真实思维链 (CoT) 提取；<br>3. 原生 Function Calling 动态工具调度（物理机理/FFT/SOP/ERP/钉飞）；<br>4. 工业级双模高可用架构（断网/未配 Key 0ms 静默切换本地高保真机理引擎）。 | **✅ 100% 已交付**<br>(真 AI 驱动 + 离线高保真双模兜底，18 项测试全绿) |
-| **Phase 5：大赛官方材料与集成部署方案** | 1. 编撰《企业级集成与部署技术方案说明书》（OpenAPI/微前端/工业物联网/Docker）；<br>2. 编撰《5分钟参赛演示视频 Demo 录制分镜脚本与答辩解说词》；<br>3. 全代码库与数据敏感品牌绝对脱敏（保持 0 污染）；<br>4. 前端工业级高质感 UI、日夜主题切换与全分辨率防文本挤压规范。 | **✅ 100% 已交付**<br>(`docs/` 目录完备交付，符合省级/国家级科技竞赛标准) |
-| **Phase 6：工业物联网与边缘端纵深 (演进方向)** | 1. 现场工业总线网关直采 (OPC-UA / MQTT / Modbus-TCP)；<br>2. 嵌入式边缘轻量化小模型端侧离线协同；<br>3. 永嘉泵阀产业大脑上云集群化多租户联邦学习。 | **🚀 后续演进阶段**<br>(已在集成指南中完成协议与拓扑架构设计) |
+我方系统需要企业提供以下最小 API 能力集：
+
+### 6.1 设备列表查询 `GET /api/devices`
+
+```json
+{
+  "devices": [
+    {
+      "device_id": "P-201",
+      "device_name": "特种高硅耐酸工业离心泵",
+      "device_type": "centrifugal_pump",
+      "area": "精细化工区",
+      "status": "running",
+      "rated_params": {
+        "npsh_r": 3.2,
+        "flow_rate_m3h": 120.0,
+        "rpm": 2900,
+        "pipe_dn_mm": 100,
+        "medium_density_kgm3": 1800
+      }
+    }
+  ]
+}
+```
+
+### 6.2 设备实时数据查询 `GET /api/devices/{device_id}/realtime-data`
+
+```json
+{
+  "device_id": "P-201",
+  "timestamp": "2026-09-06T01:20:00+08:00",
+  "measurements": {
+    "inlet_pressure": 125.3,
+    "outlet_pressure": 648.7,
+    "vibration_rms": 1.8,
+    "vibration_hf_accel": 0.31,
+    "flow_rate": 119.5,
+    "bearing_temperature": 53.2
+  },
+  "unit_mapping": {
+    "inlet_pressure": "kPa",
+    "outlet_pressure": "kPa",
+    "vibration_rms": "mm/s",
+    "vibration_hf_accel": "g",
+    "flow_rate": "m³/h",
+    "bearing_temperature": "℃"
+  }
+}
+```
+
+### 6.3 设备历史数据查询 `GET /api/devices/{device_id}/history?start=...&end=...`
+
+```json
+{
+  "device_id": "P-201",
+  "start": "2026-09-05T00:00:00+08:00",
+  "end": "2026-09-06T00:00:00+08:00",
+  "interval_seconds": 60,
+  "data_points": [
+    {
+      "timestamp": "2026-09-05T00:01:00+08:00",
+      "inlet_pressure": 124.8,
+      "vibration_rms": 1.7,
+      "flow_rate": 120.1,
+      "bearing_temperature": 52.9
+    }
+  ]
+}
+```
+
+> [!IMPORTANT]
+> 企业 API 仅需提供**只读查询**能力。工单创建、审批、备件扣减等写操作全部在我方系统内部完成，不会反向写入企业系统。
 
 ---
 
-## 📦 四、 已交付的核心技术构件清单
+## 📌 七、优先级速查表
 
-1. **核心智能体大脑**：
-   * `ovops/agent/planner.py`：Plan-and-Solve 自主规划与多轮原生 Tool-Calling 执行器（支持 DeepSeek-V4-Pro 真实在线思维链与离线机理双模）
-   * `ovops/agent/registry.py`：自研轻量 `@tool` 装饰器与 OpenAPI/OpenAI Function Calling 标准 Schema 生成器
-   * `ovops/agent/graph.py`：基于 LangGraph 的工况异常到协同处置闭环状态机
-2. **跨平台工业工具箱**：
-   * `ovops/tools/physics_tools.py`：离心泵 $NPSHa$ 水动力学机理、SciPy FFT 频域微爆冲击积分、控制阀回差死区非线性拟合
-   * `ovops/tools/rag_tools.py`：永嘉流体装备骨干企业权威 SOP 排障规程库
-   * `ovops/tools/erp_tools.py`：穿透 SQLite 设备资产主数据、永嘉本地应急备品备件库、工单生命周期读写
-   * `ovops/channels/`：钉钉 ActionCard 与飞书 Interactive Card 富文本交互协议
-3. **多角色工业前端系统**：
-   * `web/src/components/AutonomousPlannerConsole.tsx`：自主规划控制台，呈现真 AI 徽章、DeepSeek CoT 实时推理面板、动态工序树与出入参 Payload
-   * `web/src/views/TechnicianPortal.tsx`：现场维保技师移动防爆端
-   * `web/src/views/SupervisorPortal.tsx`：维保主管 Kanban 审批、永嘉备件地图与 ROI 看板
-   * `web/src/views/AdminSettingsModal.tsx`：系统配置中枢（大模型/钉飞/参数热配置与连通性测试）
-4. **技术规范文档**：
-   * `docs/INTEGRATION_GUIDE.md`：企业级集成与部署技术方案说明书
-   * `docs/DEMO_SCRIPT.md`：5 分钟演示视频分镜脚本与答辩解说词
-
+| 优先级 | 含义 | 覆盖 Phase |
+| :---: | :--- | :--- |
+| **P0** | 阻断性：不完成则无法对接企业生产环境 | Phase 7 (设备数据 API)、Phase 8 (ERP 同步)、Phase 9 (RAG 向量化)、Phase 10 部分 |
+| **P1** | 重要性：影响系统专业性与可靠性 | Phase 10 部分、Phase 11 (KPI)、Phase 12 (Agent 泛化)、Phase 13 (安全)、Phase 14 (部署) |
+| **P2** | 增强性：提升用户体验与系统弹性 | Phase 15 (前端升级)、各模块中的高级功能 |
