@@ -145,6 +145,32 @@ export function App() {
     }
   };
 
+  // 4.1 执行自然语言自主目标规划与动态任务求解
+  const handleExecuteGoal = async (goal: string, eqId?: string) => {
+    setIsInvestigating(true);
+    setApprovalStatus("PENDING");
+    try {
+      const res = await fetch('/api/agent/plan-and-execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal, equipment_id: eqId })
+      });
+      const data = await res.json();
+      setInvestigation(data);
+      // 刷新工单库与备件库存
+      const [updatedOrders, updatedParts] = await Promise.all([
+        fetch('/api/agent/erp/work-orders').then(r => r.json()),
+        fetch('/api/agent/erp/spare-parts').then(r => r.json())
+      ]);
+      setWorkOrders(updatedOrders);
+      setSpareParts(updatedParts);
+    } catch (e) {
+      console.error("执行自主目标规划异常:", e);
+    } finally {
+      setIsInvestigating(false);
+    }
+  };
+
   // 5. 现场技师移动端审批核准闭环
   const handleApprove = async (orderNo: string) => {
     try {
@@ -199,6 +225,7 @@ export function App() {
             isInvestigating={isInvestigating}
             approvalStatus={approvalStatus}
             onApprove={handleApprove}
+            onExecuteGoal={handleExecuteGoal}
             workOrders={workOrders}
             spareParts={spareParts}
             equipments={equipments}

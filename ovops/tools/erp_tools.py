@@ -118,7 +118,13 @@ def create_maintenance_work_order(
     return {
         "order_no": order_no,
         "equipment_id": equipment_id,
+        "fault_type": fault_type,
+        "severity": severity,
         "status": "PENDING_APPROVAL",
+        "decomposed_steps": decomposed_steps,
+        "required_parts": required_parts,
+        "assigned_tech": assigned_tech,
+        "created_at": created_at,
         "message": f"维保工单 {order_no} 已成功在 ERP 系统建单，正挂起等待钉钉/飞书审批确认。"
     }
 

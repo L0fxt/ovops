@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
+from ovops.agent.planner import planner
 from ovops.agent.graph import ovops_graph
 from ovops.simulator.fault_generator import telemetry_sim
 from ovops.tools.erp_tools import approve_work_order, get_all_work_orders, query_equipment_ledger, query_spare_parts_inventory
@@ -13,39 +14,29 @@ router = APIRouter(prefix="/api/agent", tags=["智能运维Agent"])
 class TriggerRequest(BaseModel):
     equipment_id: str = "P-201"
 
+class PlanExecuteRequest(BaseModel):
+    goal: str
+    equipment_id: Optional[str] = None
+
 class ApproveRequest(BaseModel):
     order_no: str
     note: Optional[str] = "现场技师已在协同端一键核准维保排程并预扣备件"
 
+@router.post("/plan-and-execute")
+def plan_and_execute_goal(req: PlanExecuteRequest):
+    """
+    智能体自主目标规划与求解执行入口：
+    接收自然语言复杂业务目标，自主拆解多步骤业务任务树，跨平台调用工具并形成闭环工单。
+    """
+    return planner.execute(goal=req.goal, equipment_id=req.equipment_id)
+
 @router.post("/trigger")
 def trigger_agent_investigation(req: TriggerRequest):
-    """触发 LangGraph 智能体全链路研判（异动捕获 -> 机理核算 -> 规程匹配 -> ERP穿透 -> 任务拆解 -> 钉飞卡片）"""
-    tick = telemetry_sim.sample_tick()
-    snapshot = tick["p201"] if req.equipment_id == "P-201" else tick["v102"]
-    
-    init_state = {
-        "equipment_id": req.equipment_id,
-        "telemetry_snapshot": snapshot,
-        "thought_logs": [],
-        "tool_executions": [],
-        "channel_notifications": []
-    }
-    
-    # 驱动 LangGraph 状态图
-    result_state = ovops_graph.invoke(init_state)
-    return {
-        "status": "success",
-        "equipment_id": req.equipment_id,
-        "thought_logs": result_state.get("thought_logs", []),
-        "tool_executions": result_state.get("tool_executions", []),
-        "physics_diagnosis": result_state.get("physics_diagnosis", {}),
-        "sop_steps": result_state.get("sop_steps", []),
-        "erp_ledger": result_state.get("erp_ledger", {}),
-        "available_spare_parts": result_state.get("available_spare_parts", []),
-        "work_order": result_state.get("work_order", {}),
-        "channel_notifications": result_state.get("channel_notifications", []),
-        "approval_status": result_state.get("approval_status", "PENDING")
-    }
+    """触发 LangGraph 智能体自主研判与闭环工序拆解"""
+    default_goal = (
+        f"针对流体装备 {req.equipment_id} 实时工况异常特征，自主核算工业机理，穿透 ERP 数据库调拨本地备件并生成闭环工单"
+    )
+    return planner.execute(goal=default_goal, equipment_id=req.equipment_id)
 
 @router.post("/approve")
 def approve_ticket(req: ApproveRequest):

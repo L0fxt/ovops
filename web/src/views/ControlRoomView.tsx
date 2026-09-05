@@ -1,6 +1,7 @@
 import React from 'react';
 import { DigitalTwinFlow } from '../components/DigitalTwinFlow';
 import { TelemetryChart } from '../components/TelemetryChart';
+import { AutonomousPlannerConsole } from '../components/AutonomousPlannerConsole';
 import { AgentInvestigationPanel } from '../components/AgentInvestigationPanel';
 import { ChannelSimulator } from '../components/ChannelSimulator';
 import { ErpTable } from '../components/ErpTable';
@@ -16,6 +17,7 @@ interface ControlRoomViewProps {
   isInvestigating: boolean;
   approvalStatus: string;
   onApprove: (orderNo: string) => void;
+  onExecuteGoal: (goal: string, eqId?: string) => void;
   workOrders: any[];
   spareParts: any[];
   equipments: any[];
@@ -32,6 +34,7 @@ export const ControlRoomView: React.FC<ControlRoomViewProps> = ({
   isInvestigating,
   approvalStatus,
   onApprove,
+  onExecuteGoal,
   workOrders,
   spareParts,
   equipments
@@ -44,13 +47,20 @@ export const ControlRoomView: React.FC<ControlRoomViewProps> = ({
       {/* 第二层：ECharts 工业级时序监测 */}
       <TelemetryChart historyP201={historyP201} historyV102={historyV102} theme={theme} />
 
-      {/* 第三层：LangGraph 智能体状态机执行与思维链 */}
+      {/* 第三层：智能体自主目标规划与跨平台求解中枢 */}
+      <AutonomousPlannerConsole
+        investigation={investigation}
+        isPlanning={isInvestigating}
+        onExecuteGoal={onExecuteGoal}
+      />
+
+      {/* 第四层：LangGraph 智能体状态机执行与思维链 */}
       <AgentInvestigationPanel
         investigation={investigation}
         isInvestigating={isInvestigating}
       />
 
-      {/* 第四层：双通道主动协同模拟舱 (钉钉 & 飞书) */}
+      {/* 第五层：双通道主动协同模拟舱 (钉钉 & 飞书) */}
       <ChannelSimulator
         notifications={investigation?.channel_notifications ?? []}
         onApprove={onApprove}
@@ -58,7 +68,7 @@ export const ControlRoomView: React.FC<ControlRoomViewProps> = ({
         approvalStatus={approvalStatus}
       />
 
-      {/* 第五层：ERP 核心资产与供应链穿透看板 */}
+      {/* 第六层：ERP 核心资产与供应链穿透看板 */}
       <ErpTable
         workOrders={workOrders}
         spareParts={spareParts}
