@@ -7,6 +7,11 @@ import { ChannelSimulator } from './components/ChannelSimulator';
 import { ErpTable } from './components/ErpTable';
 
 export function App() {
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('ovops_theme');
+    return (saved === 'light' || saved === 'dark') ? saved : 'dark';
+  });
+
   const [faultMode, setFaultMode] = useState<string>("NORMAL");
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [isInvestigating, setIsInvestigating] = useState<boolean>(false);
@@ -24,6 +29,16 @@ export function App() {
   const [equipments, setEquipments] = useState<any[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
+
+  // 0. 主题日夜切换副作用
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem('ovops_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // 1. 初始化拉取 ERP 基础数据
   const loadErpData = async () => {
@@ -152,7 +167,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-zinc-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-zinc-50 dark:bg-[#09090B] text-zinc-900 dark:text-zinc-100 flex flex-col font-sans transition-colors duration-200">
       {/* 顶部导航与控制器 */}
       <Navbar
         faultMode={faultMode}
@@ -160,6 +175,8 @@ export function App() {
         wsConnected={wsConnected}
         isInvestigating={isInvestigating}
         onTriggerAgent={handleTriggerAgent}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* 主体画布：Bento 工业栅格 */}
@@ -169,7 +186,7 @@ export function App() {
         <DigitalTwinFlow p201={p201} v102={v102} faultMode={faultMode} />
 
         {/* 第二层：ECharts 工业级时序监测 */}
-        <TelemetryChart historyP201={historyP201} historyV102={historyV102} />
+        <TelemetryChart historyP201={historyP201} historyV102={historyV102} theme={theme} />
 
         {/* 第三层：LangGraph 智能体状态机执行与思维链 */}
         <AgentInvestigationPanel
@@ -195,7 +212,7 @@ export function App() {
       </main>
 
       {/* 底部版权与背书 */}
-      <footer className="w-full border-t border-white/10 bg-zinc-950 py-3 px-6 text-center text-xs text-zinc-500 font-mono">
+      <footer className="w-full border-t border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 py-3 px-6 text-center text-xs text-zinc-500 font-mono transition-colors">
         瓯阀智枢 (OuValve-Ops) · 温州永嘉特色流体装备产业智能体标杆 · 赋能超达/宣达/伯特利企业级智能运维
       </footer>
     </div>
