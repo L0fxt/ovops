@@ -72,7 +72,7 @@ export const DigitalTwinFlow: React.FC<DigitalTwinFlowProps> = ({ p201, v102, fa
           </svg>
         </div>
 
-        {/* 节点 2: 宣达离心泵 P-201 */}
+        {/* 节点 2: 特种离心泵 P-201 */}
         <div className={`md:col-span-3 rounded-lg p-3.5 transition-all duration-300 flex flex-col justify-between h-full min-h-[140px] ${
           isPumpFault
             ? "bg-red-50 dark:bg-red-950/20 border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
@@ -80,7 +80,7 @@ export const DigitalTwinFlow: React.FC<DigitalTwinFlowProps> = ({ p201, v102, fa
         }`}>
           <div className="flex items-center justify-between gap-1">
             <div className="flex items-center gap-1.5 truncate">
-              <span className="font-bold text-xs text-zinc-900 dark:text-zinc-100 whitespace-nowrap flex-shrink-0">P-201 宣达特种离心泵</span>
+              <span className="font-bold text-xs text-zinc-900 dark:text-zinc-100 whitespace-nowrap flex-shrink-0">P-201 特种耐酸离心泵</span>
             </div>
             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 ${
               isPumpFault ? "bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 animate-pulse border border-red-300 dark:border-red-500/40" : "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
@@ -117,7 +117,7 @@ export const DigitalTwinFlow: React.FC<DigitalTwinFlowProps> = ({ p201, v102, fa
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-zinc-600 dark:text-zinc-400 border-t border-zinc-200 dark:border-white/5 pt-1.5">
-            <span className="truncate whitespace-nowrap">原厂: 宣达实业 (XD-SZB-100)</span>
+            <span className="truncate whitespace-nowrap">制造: 永嘉特种泵业 (YJ-SZB-100)</span>
             <span className="font-mono text-[10px] text-blue-600 dark:text-blue-400 whitespace-nowrap flex-shrink-0">扬程: 52m</span>
           </div>
         </div>
@@ -136,7 +136,7 @@ export const DigitalTwinFlow: React.FC<DigitalTwinFlowProps> = ({ p201, v102, fa
           </svg>
         </div>
 
-        {/* 节点 3: 伯特利调节阀 V-102 */}
+        {/* 节点 3: 高压调节阀 V-102 */}
         <div className={`md:col-span-3 rounded-lg p-3.5 transition-all duration-300 flex flex-col justify-between h-full min-h-[140px] ${
           isValveFault
             ? "bg-amber-50 dark:bg-amber-950/20 border-2 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.2)]"
@@ -144,7 +144,7 @@ export const DigitalTwinFlow: React.FC<DigitalTwinFlowProps> = ({ p201, v102, fa
         }`}>
           <div className="flex items-center justify-between gap-1">
             <div className="flex items-center gap-1.5 truncate">
-              <span className="font-bold text-xs text-zinc-900 dark:text-zinc-100 whitespace-nowrap flex-shrink-0">V-102 伯特利高压调节阀</span>
+              <span className="font-bold text-xs text-zinc-900 dark:text-zinc-100 whitespace-nowrap flex-shrink-0">V-102 高压套筒调节阀</span>
             </div>
             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 ${
               isValveFault ? "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 animate-pulse border border-amber-300 dark:border-amber-500/40" : "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
@@ -181,7 +181,7 @@ export const DigitalTwinFlow: React.FC<DigitalTwinFlowProps> = ({ p201, v102, fa
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-zinc-600 dark:text-zinc-400 border-t border-zinc-200 dark:border-white/5 pt-1.5">
-            <span className="truncate whitespace-nowrap">原厂: 伯特利科技 (BTL-DN100)</span>
+            <span className="truncate whitespace-nowrap">制造: 永嘉控制装备 (YJ-DN100)</span>
             <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400 whitespace-nowrap flex-shrink-0">公称: PN160</span>
           </div>
         </div>

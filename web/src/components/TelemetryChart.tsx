@@ -153,7 +153,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({ historyP201, his
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" strokeWidth={1.5} />
             <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-              宣达离心泵 (P-201) · 入口压降与高频振动关联时序
+              特种离心泵 (P-201) · 入口压降与高频振动关联时序
             </h4>
           </div>
           <span className="text-[10px] font-mono text-zinc-500 whitespace-nowrap flex-shrink-0">
@@ -171,7 +171,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({ historyP201, his
           <div className="flex items-center gap-2">
             <Gauge className="w-4 h-4 text-amber-600 dark:text-amber-400" strokeWidth={1.5} />
             <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-              伯特利控制阀 (V-102) · 阀位指令(SP)与反馈(PV)迟滞响应
+              高压控制阀 (V-102) · 阀位指令(SP)与反馈(PV)迟滞响应
             </h4>
           </div>
           <span className="text-[10px] font-mono text-zinc-500 whitespace-nowrap flex-shrink-0">

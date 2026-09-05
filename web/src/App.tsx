@@ -213,7 +213,7 @@ export function App() {
 
       {/* 底部版权与背书 */}
       <footer className="w-full border-t border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 py-3 px-6 text-center text-xs text-zinc-500 font-mono transition-colors">
-        瓯阀智枢 (OuValve-Ops) · 温州永嘉特色流体装备产业智能体标杆 · 赋能超达/宣达/伯特利企业级智能运维
+        瓯阀智枢 (OuValve-Ops) · 温州永嘉特色流体装备产业智能体标杆 · 赋能永嘉泵阀产业集群企业级智能运维
       </footer>
     </div>
   );

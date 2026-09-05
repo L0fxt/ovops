@@ -52,12 +52,12 @@ export const ChannelSimulator: React.FC<ChannelSimulatorProps> = ({
                 🚨【瓯阀智枢】离心泵 P-201 气蚀告警工单
               </h4>
               <p className="text-zinc-500 dark:text-zinc-400 text-[11px]">
-                监测到宣达耐酸离心泵入口压头骤降，高频微爆振动超标，自动拆解维保排障计划并匹配备件库。
+                监测到特种耐酸离心泵入口压头骤降，高频微爆振动超标，自动拆解维保排障计划并匹配备件库。
               </p>
               <div className="p-2 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 font-mono text-[11px] space-y-1">
                 <div>工单编号: <span className="text-blue-600 dark:text-blue-400 font-bold">{orderNo}</span></div>
                 <div>指派技师: 陈工 (资深维保工程师)</div>
-                <div>本地备件: 超耐酸高硅叶轮 (宣达备件库)</div>
+                <div>本地备件: 超耐酸高硅叶轮 (永嘉特种备件库)</div>
               </div>
             </div>
           </div>
@@ -103,7 +103,7 @@ export const ChannelSimulator: React.FC<ChannelSimulatorProps> = ({
                 </span>
               </div>
               <p className="text-zinc-500 dark:text-zinc-400 text-[11px]">
-                机理模型已自动比对《宣达实业 Q/XD-02 维保规程》，已生成应急降频与内窥探伤任务清单。
+                机理模型已自动比对《特种耐酸离心泵原厂运维规程 (Q/YJ-PUMP-02)》，已生成应急降频与内窥探伤任务清单。
               </p>
               <div className="p-2 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 font-mono text-[11px] space-y-1">
                 <div>ERP单据: <span className="text-emerald-600 dark:text-emerald-400 font-bold">{orderNo}</span></div>

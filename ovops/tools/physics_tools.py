@@ -33,7 +33,7 @@ def calculate_pump_cavitation(equipment_id: str, inlet_pressure_kpa: float, flui
     velocity_head = (velocity ** 2) / (2 * g)
     
     npsha = round(max(0.0, pressure_head + velocity_head), 2)
-    rated_npshr = 3.2 # 宣达 P-201 出厂额定必需汽蚀余量
+    rated_npshr = 3.2 # P-201 出厂额定必需汽蚀余量
     safety_margin = round(npsha - rated_npshr, 2)
     
     is_cavitation = npsha < rated_npshr

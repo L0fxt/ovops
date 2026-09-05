@@ -73,7 +73,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5 text-red-500 dark:text-red-400" strokeWidth={1.5} />
-            宣达离心泵气蚀 (P-201)
+            特种离心泵气蚀 (P-201)
           </button>
 
           <button
@@ -88,7 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <AlertOctagon className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" strokeWidth={1.5} />
-            伯特利调节阀卡阻 (V-102)
+            高压调节阀卡阻 (V-102)
           </button>
         </div>
 

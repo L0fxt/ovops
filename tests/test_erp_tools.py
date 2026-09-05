@@ -3,8 +3,8 @@ from ovops.tools.erp_tools import query_equipment_ledger, query_spare_parts_inve
 
 def test_query_ledger():
     ledger = query_equipment_ledger("P-201")
-    assert ledger["name"] == "宣达高硅耐酸工业离心泵"
-    assert "宣达实业" in ledger["manufacturer"]
+    assert ledger["name"] == "特种高硅耐酸工业离心泵"
+    assert "永嘉特种合金泵业" in ledger["manufacturer"]
 
 def test_query_spare_parts():
     parts = query_spare_parts_inventory("P-201")
