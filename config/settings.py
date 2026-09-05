@@ -18,8 +18,8 @@ class Settings(BaseModel):
     
     # 大模型服务配置（支持 DeepSeek, 通义千问, Gemini 或本地 Mock 模式）
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://api.deepseek.com/v1")
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "deepseek-chat")
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://api.deepseek.com")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "deepseek-v4-pro")
     USE_MOCK_LLM_IF_NO_KEY: bool = True
     
     # 多端协同 Webhook (钉钉 / 飞书)

@@ -181,9 +181,9 @@ def init_erp_database():
     # 插入系统动态配置默认值
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     configs_data = [
-        ("llm_base_url", "https://api.deepseek.com/v1", "LLM", "大语言模型 API Base URL", now_str),
+        ("llm_base_url", "https://api.deepseek.com", "LLM", "大语言模型 API Base URL (OpenAI兼容协议)", now_str),
         ("llm_api_key", "", "LLM", "大语言模型 API 认证密钥 (留空则启用内置高保真机理引擎)", now_str),
-        ("llm_model", "deepseek-chat", "LLM", "选定推理模型 (DeepSeek-V3/R1、Qwen-2.5 等)", now_str),
+        ("llm_model", "deepseek-v4-pro", "LLM", "选定推理模型 (DeepSeek-V4-Pro / Flash 等)", now_str),
         ("dingtalk_webhook", "", "CHANNEL", "钉钉自定义机器人 Webhook URL", now_str),
         ("feishu_webhook", "", "CHANNEL", "飞书自定义机器人 Webhook URL", now_str),
         ("cavitation_tolerance", "0.5", "THRESHOLD", "离心泵气蚀安全裕度阈值 (米)", now_str),

@@ -12,9 +12,9 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
   // 配置状态
-  const [baseUrl, setBaseUrl] = useState<string>("https://api.deepseek.com/v1");
+  const [baseUrl, setBaseUrl] = useState<string>("https://api.deepseek.com");
   const [apiKey, setApiKey] = useState<string>("");
-  const [model, setModel] = useState<string>("deepseek-chat");
+  const [model, setModel] = useState<string>("deepseek-v4-pro");
   const [dingtalkUrl, setDingtalkUrl] = useState<string>("");
   const [feishuUrl, setFeishuUrl] = useState<string>("");
   const [cavitationTolerance, setCavitationTolerance] = useState<string>("0.5");
@@ -194,19 +194,27 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
               </div>
 
               <div>
-                <label className="block text-zinc-700 dark:text-zinc-300 font-medium mb-1">
-                  API Base URL
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-zinc-700 dark:text-zinc-300 font-medium">
+                    API Base URL
+                  </label>
+                  <span className="text-[11px] text-zinc-400 font-mono">
+                    官方推荐: https://api.deepseek.com
+                  </span>
+                </div>
                 <div className="relative">
                   <Globe className="w-3.5 h-3.5 absolute left-3 top-2.5 text-zinc-400" />
                   <input
                     type="text"
                     value={baseUrl}
                     onChange={(e) => setBaseUrl(e.target.value)}
-                    placeholder="https://api.deepseek.com/v1"
+                    placeholder="https://api.deepseek.com"
                     className="w-full pl-9 pr-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-mono focus:outline-none focus:border-blue-500"
                   />
                 </div>
+                <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  💡 根据 DeepSeek 官方文档，OpenAI 格式端点为 <code className="text-zinc-700 dark:text-zinc-300">https://api.deepseek.com</code>（无需 /v1 后缀）；Anthropic 格式为 <code className="text-zinc-700 dark:text-zinc-300">https://api.deepseek.com/anthropic</code>。
+                </p>
               </div>
 
               <div>
@@ -223,6 +231,9 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
                     className="w-full pl-9 pr-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-mono focus:outline-none focus:border-blue-500"
                   />
                 </div>
+                <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  可前往 <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">DeepSeek 开放平台控制台</a> 申请与管理 API Key。
+                </p>
               </div>
 
               <div>
@@ -237,7 +248,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
                     rel="noreferrer"
                     className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-sans"
                   >
-                    <span>DeepSeek 官方模型文档</span>
+                    <span>查看 DeepSeek 官方模型文档</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
@@ -249,87 +260,108 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
                     list="preset-models"
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
-                    placeholder="可自由填写或选择模型标识，如 deepseek-chat、deepseek-reasoner 或自定义微调模型"
+                    placeholder="可自由填写或选择模型标识，如 deepseek-v4-flash、deepseek-v4-pro 等"
                     className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-mono text-xs focus:outline-none focus:border-blue-500 transition-colors"
                   />
                   <datalist id="preset-models">
-                    <option value="deepseek-chat" label="DeepSeek-V3 推荐 (通用对话与 Tool-Calling 工具调用)" />
-                    <option value="deepseek-reasoner" label="DeepSeek-R1 (深度思维链 CoT 推理)" />
+                    <option value="deepseek-v4-pro" label="DeepSeek-V4-Pro (官方高性能主力推荐)" />
+                    <option value="deepseek-v4-flash" label="DeepSeek-V4-Flash (官方高速低延迟 · 工具调用推荐)" />
+                    <option value="deepseek-v4-flash-vision-exp" label="DeepSeek-V4-Flash-Vision (官方实验性多模态)" />
+                    <option value="deepseek-chat" label="DeepSeek-Chat 兼容别名" />
+                    <option value="deepseek-reasoner" label="DeepSeek-Reasoner 兼容别名" />
                     <option value="qwen-plus" label="通义千问 Plus" />
                     <option value="qwen-max" label="通义千问 Max" />
                     <option value="gpt-4o-mini" label="OpenAI GPT-4o-mini" />
-                    <option value="claude-3-5-sonnet-20241022" label="Claude 3.5 Sonnet" />
                   </datalist>
                 </div>
 
-                {/* 预设模型快捷选取卡片 (DeepSeek 官方规范优先) */}
+                {/* 预设模型快捷选取卡片 (100% 对齐 DeepSeek 官方文档 PARAM | VALUE 规范) */}
                 <div className="space-y-1.5">
                   <div className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                     <Sparkles className="w-3 h-3 text-amber-500" />
-                    <span>官方推荐预设 (点击可快速载入):</span>
+                    <span>官方文档核心模型 (点击即可自动载入):</span>
                   </div>
 
                   {/* DeepSeek 官方核心模型对齐 */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                     <button
                       type="button"
                       onClick={() => {
-                        setModel("deepseek-chat");
-                        if (!baseUrl || baseUrl.includes("example")) {
-                          setBaseUrl("https://api.deepseek.com/v1");
-                        }
+                        setModel("deepseek-v4-flash");
+                        setBaseUrl("https://api.deepseek.com");
                       }}
                       className={`p-2 rounded-md text-left transition-all border flex flex-col gap-0.5 ${
-                        model === "deepseek-chat"
+                        model === "deepseek-v4-flash"
                           ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-900 dark:text-blue-200 shadow-sm"
                           : "bg-zinc-50/70 dark:bg-zinc-950/50 border-zinc-200 dark:border-white/10 hover:border-blue-300 text-zinc-700 dark:text-zinc-300"
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-xs">deepseek-chat</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-mono">
-                          DeepSeek-V3
+                        <span className="font-mono font-bold text-xs">deepseek-v4-flash</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono">
+                          官方推荐
                         </span>
                       </div>
                       <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                        官方主力模型，支持原生 Tool Calls 与高速流式响应
+                        高效轻量版，极速响应，原生支持 Tool Calls
                       </span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => {
-                        setModel("deepseek-reasoner");
-                        if (!baseUrl || baseUrl.includes("example")) {
-                          setBaseUrl("https://api.deepseek.com/v1");
-                        }
+                        setModel("deepseek-v4-pro");
+                        setBaseUrl("https://api.deepseek.com");
                       }}
                       className={`p-2 rounded-md text-left transition-all border flex flex-col gap-0.5 ${
-                        model === "deepseek-reasoner"
+                        model === "deepseek-v4-pro"
+                          ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-900 dark:text-blue-200 shadow-sm"
+                          : "bg-zinc-50/70 dark:bg-zinc-950/50 border-zinc-200 dark:border-white/10 hover:border-blue-300 text-zinc-700 dark:text-zinc-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-xs">deepseek-v4-pro</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-mono">
+                          Pro 旗舰
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                        高性能标准模型，适用于复杂规划与深度推理
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModel("deepseek-v4-flash-vision-exp");
+                        setBaseUrl("https://api.deepseek.com");
+                      }}
+                      className={`p-2 rounded-md text-left transition-all border flex flex-col gap-0.5 ${
+                        model === "deepseek-v4-flash-vision-exp"
                           ? "bg-purple-50 dark:bg-purple-950/40 border-purple-500 text-purple-900 dark:text-purple-200 shadow-sm"
                           : "bg-zinc-50/70 dark:bg-zinc-950/50 border-zinc-200 dark:border-white/10 hover:border-purple-300 text-zinc-700 dark:text-zinc-300"
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-xs">deepseek-reasoner</span>
+                        <span className="font-mono font-bold text-xs truncate">v4-flash-vision</span>
                         <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 font-mono">
-                          DeepSeek-R1
+                          实验多模态
                         </span>
                       </div>
                       <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                        深度思考推理模型，具备严谨思维链（CoT）机理推演
+                        实验性模型，额外支持工业图像探伤输入
                       </span>
                     </button>
                   </div>
 
-                  {/* 其他通用第三方与私有化模型快速切换 */}
+                  {/* 兼容别名与其他通用模型 */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[10px] text-zinc-400 mr-0.5">其他通用模型:</span>
+                    <span className="text-[10px] text-zinc-400 mr-0.5">兼容与通用模型:</span>
                     {[
+                      { name: "deepseek-chat", label: "deepseek-chat" },
+                      { name: "deepseek-reasoner", label: "deepseek-reasoner" },
                       { name: "qwen-plus", label: "通义千问 Plus" },
-                      { name: "qwen-max", label: "通义千问 Max" },
-                      { name: "gpt-4o-mini", label: "GPT-4o-mini" },
-                      { name: "claude-3-5-sonnet-20241022", label: "Claude-3.5" }
+                      { name: "gpt-4o-mini", label: "GPT-4o-mini" }
                     ].map((item) => (
                       <button
                         key={item.name}
@@ -361,7 +393,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
               </div>
 
               {llmTestStatus && (
-                <div className={`p-3 rounded-md text-xs space-y-1 font-mono ${
+                <div className={`p-3 rounded-md text-xs space-y-1.5 font-mono ${
                   llmTestStatus.status === 'success'
                     ? 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
                     : 'bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-500/30 text-red-800 dark:text-red-300'
@@ -370,9 +402,14 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
                     <span>{llmTestStatus.status === 'success' ? '✅ 连通校验成功' : '❌ 连接出现异常'}</span>
                     <span>延迟: {llmTestStatus.latency_ms} ms</span>
                   </div>
-                  <p className="font-sans text-[11px] leading-relaxed">
+                  <p className="font-sans text-[11px] leading-relaxed break-words">
                     {llmTestStatus.reply || llmTestStatus.message}
                   </p>
+                  {llmTestStatus.status !== 'success' && (
+                    <div className="pt-1 border-t border-red-200 dark:border-red-500/20 text-[10px] text-red-700 dark:text-red-400 font-sans">
+                      💡 排查建议：1. 请确认您的 API Key 具有有效额度且未过期；2. 请确认 Base URL 与 Model 名称为 DeepSeek 官方支持版本；3. 若无外部网络，可清空 Key 以启用高保真离线机理引擎。
+                    </div>
+                  )}
                 </div>
               )}
             </div>

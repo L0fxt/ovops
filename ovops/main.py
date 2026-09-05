@@ -17,6 +17,32 @@ from data.erp.init_db import init_erp_database
 if not settings.ERP_DB_PATH.exists():
     init_erp_database()
 
+import sqlite3
+def load_saved_configs():
+    """服务启动时从 SQLite 数据库热恢复系统动态配置"""
+    try:
+        conn = sqlite3.connect(settings.ERP_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT key, value FROM system_configs")
+        for row in c.fetchall():
+            k, v = row["key"], row["value"]
+            if k == "llm_base_url" and v:
+                settings.OPENAI_BASE_URL = v
+            elif k == "llm_api_key" and v:
+                settings.OPENAI_API_KEY = v
+            elif k == "llm_model" and v:
+                settings.LLM_MODEL = v
+            elif k == "dingtalk_webhook" and v:
+                settings.DINGTALK_WEBHOOK = v
+            elif k == "feishu_webhook" and v:
+                settings.FEISHU_WEBHOOK = v
+        conn.close()
+    except Exception:
+        pass
+
+load_saved_configs()
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.PROJECT_SUBTITLE,
