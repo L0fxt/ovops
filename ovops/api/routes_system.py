@@ -111,20 +111,21 @@ async def test_llm_connectivity(req: TestLlmRequest):
         payload = {
             "model": model,
             "messages": [{"role": "user", "content": "请回复'瓯阀智枢工业智能体连通就绪'"}],
-            "max_tokens": 30
+            "max_tokens": 80
         }
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.post(url, json=payload, headers=headers)
             latency = int((time.time() - start_t) * 1000)
             if resp.status_code == 200:
                 data = resp.json()
-                reply = data["choices"][0]["message"]["content"]
+                msg = data["choices"][0]["message"]
+                reply = msg.get("content") or msg.get("reasoning_content") or "模型连接成功"
                 return {
                     "status": "success",
                     "mode": "ONLINE_API",
                     "latency_ms": latency,
                     "model": model,
-                    "reply": reply.strip()
+                    "reply": str(reply).strip()
                 }
             else:
                 return {

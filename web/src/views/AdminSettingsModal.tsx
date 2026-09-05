@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Cpu, Send, Sliders, CheckCircle2, AlertCircle, RefreshCw, Key, Globe, Shield } from 'lucide-react';
+import { X, Cpu, Send, Sliders, CheckCircle2, AlertCircle, RefreshCw, Key, Globe, Shield, ExternalLink, Sparkles } from 'lucide-react';
 
 interface AdminSettingsModalProps {
   isOpen: boolean;
@@ -226,21 +226,126 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
               </div>
 
               <div>
-                <label className="block text-zinc-700 dark:text-zinc-300 font-medium mb-1">
-                  模型选择 (Model Selection)
-                </label>
-                <select
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-mono focus:outline-none focus:border-blue-500"
-                >
-                  <option value="deepseek-chat">deepseek-chat (DeepSeek-V3 推荐)</option>
-                  <option value="deepseek-reasoner">deepseek-reasoner (DeepSeek-R1 深度推理)</option>
-                  <option value="qwen-plus">qwen-plus (通义千问高性价比)</option>
-                  <option value="qwen-max">qwen-max (通义千问旗舰版)</option>
-                  <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
-                  <option value="gemini-1.5-pro">gemini-1.5-pro</option>
-                </select>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-zinc-700 dark:text-zinc-300 font-medium flex items-center gap-1.5">
+                    <Cpu className="w-3.5 h-3.5 text-blue-500" />
+                    <span>模型名称 (Model Identifier)</span>
+                  </label>
+                  <a
+                    href="https://api-docs.deepseek.com/zh-cn/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-sans"
+                  >
+                    <span>DeepSeek 官方模型文档</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                {/* 可自由编辑与自定义填写的模型输入框，挂载 datalist 建议 */}
+                <div className="relative mb-2">
+                  <input
+                    type="text"
+                    list="preset-models"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    placeholder="可自由填写或选择模型标识，如 deepseek-chat、deepseek-reasoner 或自定义微调模型"
+                    className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-mono text-xs focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                  <datalist id="preset-models">
+                    <option value="deepseek-chat" label="DeepSeek-V3 推荐 (通用对话与 Tool-Calling 工具调用)" />
+                    <option value="deepseek-reasoner" label="DeepSeek-R1 (深度思维链 CoT 推理)" />
+                    <option value="qwen-plus" label="通义千问 Plus" />
+                    <option value="qwen-max" label="通义千问 Max" />
+                    <option value="gpt-4o-mini" label="OpenAI GPT-4o-mini" />
+                    <option value="claude-3-5-sonnet-20241022" label="Claude 3.5 Sonnet" />
+                  </datalist>
+                </div>
+
+                {/* 预设模型快捷选取卡片 (DeepSeek 官方规范优先) */}
+                <div className="space-y-1.5">
+                  <div className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-amber-500" />
+                    <span>官方推荐预设 (点击可快速载入):</span>
+                  </div>
+
+                  {/* DeepSeek 官方核心模型对齐 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModel("deepseek-chat");
+                        if (!baseUrl || baseUrl.includes("example")) {
+                          setBaseUrl("https://api.deepseek.com/v1");
+                        }
+                      }}
+                      className={`p-2 rounded-md text-left transition-all border flex flex-col gap-0.5 ${
+                        model === "deepseek-chat"
+                          ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-900 dark:text-blue-200 shadow-sm"
+                          : "bg-zinc-50/70 dark:bg-zinc-950/50 border-zinc-200 dark:border-white/10 hover:border-blue-300 text-zinc-700 dark:text-zinc-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-xs">deepseek-chat</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-mono">
+                          DeepSeek-V3
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                        官方主力模型，支持原生 Tool Calls 与高速流式响应
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModel("deepseek-reasoner");
+                        if (!baseUrl || baseUrl.includes("example")) {
+                          setBaseUrl("https://api.deepseek.com/v1");
+                        }
+                      }}
+                      className={`p-2 rounded-md text-left transition-all border flex flex-col gap-0.5 ${
+                        model === "deepseek-reasoner"
+                          ? "bg-purple-50 dark:bg-purple-950/40 border-purple-500 text-purple-900 dark:text-purple-200 shadow-sm"
+                          : "bg-zinc-50/70 dark:bg-zinc-950/50 border-zinc-200 dark:border-white/10 hover:border-purple-300 text-zinc-700 dark:text-zinc-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-xs">deepseek-reasoner</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 font-mono">
+                          DeepSeek-R1
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                        深度思考推理模型，具备严谨思维链（CoT）机理推演
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* 其他通用第三方与私有化模型快速切换 */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-zinc-400 mr-0.5">其他通用模型:</span>
+                    {[
+                      { name: "qwen-plus", label: "通义千问 Plus" },
+                      { name: "qwen-max", label: "通义千问 Max" },
+                      { name: "gpt-4o-mini", label: "GPT-4o-mini" },
+                      { name: "claude-3-5-sonnet-20241022", label: "Claude-3.5" }
+                    ].map((item) => (
+                      <button
+                        key={item.name}
+                        type="button"
+                        onClick={() => setModel(item.name)}
+                        className={`px-2 py-0.5 rounded text-[11px] font-mono border transition-all ${
+                          model === item.name
+                            ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/40 font-semibold"
+                            : "bg-zinc-100 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/10 hover:text-zinc-900 dark:hover:text-zinc-200"
+                        }`}
+                      >
+                        {item.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div className="pt-2 border-t border-zinc-200 dark:border-white/10 flex items-center justify-between">
