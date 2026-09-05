@@ -29,5 +29,6 @@ class Settings(BaseModel):
     # 服务网络配置
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", "8000"))
+    PUBLIC_URL: str = os.getenv("PUBLIC_URL", "http://localhost:8000")
 
 settings = Settings()

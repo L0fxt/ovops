@@ -15,6 +15,10 @@ def build_feishu_interactive_card(equipment_id: str, fault_type: str, severity: 
 **【本地备件调度】**  
 {parts_summary}
 """
+    base_url = (getattr(settings, "PUBLIC_URL", None) or "http://localhost:8000").rstrip("/")
+    approve_url = f"{base_url}/api/agent/approve-web?order_no={order_no}"
+    twin_url = f"{base_url}/?equipment_id={equipment_id}"
+
     card = {
         "config": {"wide_screen_mode": True},
         "header": {
@@ -34,12 +38,24 @@ def build_feishu_interactive_card(equipment_id: str, fault_type: str, severity: 
                         "tag": "button",
                         "text": {"tag": "plain_text", "content": "一键核准并调拨备件"},
                         "type": "primary",
+                        "multi_url": {
+                            "url": approve_url,
+                            "pc_url": approve_url,
+                            "android_url": approve_url,
+                            "ios_url": approve_url
+                        },
                         "value": {"order_no": order_no, "action": "approve"}
                     },
                     {
                         "tag": "button",
                         "text": {"tag": "plain_text", "content": "查看设备数字孪生"},
                         "type": "default",
+                        "multi_url": {
+                            "url": twin_url,
+                            "pc_url": twin_url,
+                            "android_url": twin_url,
+                            "ios_url": twin_url
+                        },
                         "value": {"equipment_id": equipment_id, "action": "view_twin"}
                     }
                 ]

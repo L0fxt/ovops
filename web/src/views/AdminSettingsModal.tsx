@@ -17,6 +17,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
   const [model, setModel] = useState<string>("deepseek-v4-pro");
   const [dingtalkUrl, setDingtalkUrl] = useState<string>("");
   const [feishuUrl, setFeishuUrl] = useState<string>("");
+  const [publicUrl, setPublicUrl] = useState<string>("http://localhost:8000");
   const [cavitationTolerance, setCavitationTolerance] = useState<string>("0.5");
   const [deadbandLimit, setDeadbandLimit] = useState<string>("1.0");
 
@@ -37,6 +38,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
           if (data.llm_model) setModel(data.llm_model.value);
           if (data.dingtalk_webhook) setDingtalkUrl(data.dingtalk_webhook.value);
           if (data.feishu_webhook) setFeishuUrl(data.feishu_webhook.value);
+          if (data.public_url) setPublicUrl(data.public_url.value);
           if (data.cavitation_tolerance) setCavitationTolerance(data.cavitation_tolerance.value);
           if (data.valve_deadband_limit) setDeadbandLimit(data.valve_deadband_limit.value);
         })
@@ -61,6 +63,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
             llm_model: model,
             dingtalk_webhook: dingtalkUrl,
             feishu_webhook: feishuUrl,
+            public_url: publicUrl,
             cavitation_tolerance: cavitationTolerance,
             valve_deadband_limit: deadbandLimit
           }
@@ -461,6 +464,26 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
                   placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..."
                   className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-mono focus:outline-none focus:border-blue-500"
                 />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-zinc-700 dark:text-zinc-300 font-medium flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-zinc-500" />
+                    服务公网 / 局域网访问地址 (Public Base URL)
+                  </label>
+                  <span className="text-[11px] text-zinc-400">用于卡片移动端直达核准</span>
+                </div>
+                <input
+                  type="text"
+                  value={publicUrl}
+                  onChange={(e) => setPublicUrl(e.target.value)}
+                  placeholder="http://localhost:8000 或 http://局域网IP:8000"
+                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-mono focus:outline-none focus:border-blue-500"
+                />
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  飞书/钉钉卡片点击核准跳转此地址。局域网演示请填机器真实内网 IP（如 http://192.168.x.x:8000），公网部署请填域名。
+                </p>
               </div>
 
               {channelTestStatus && (

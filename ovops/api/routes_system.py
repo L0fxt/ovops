@@ -80,6 +80,8 @@ def update_system_configs(req: UpdateConfigRequest):
             settings.DINGTALK_WEBHOOK = v_clean
         elif k == "feishu_webhook":
             settings.FEISHU_WEBHOOK = v_clean
+        elif k == "public_url":
+            settings.PUBLIC_URL = v_clean
             
     conn.commit()
     conn.close()

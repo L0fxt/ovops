@@ -186,6 +186,7 @@ def init_erp_database():
         ("llm_model", "deepseek-v4-pro", "LLM", "选定推理模型 (DeepSeek-V4-Pro / Flash 等)", now_str),
         ("dingtalk_webhook", "", "CHANNEL", "钉钉自定义机器人 Webhook URL", now_str),
         ("feishu_webhook", "", "CHANNEL", "飞书自定义机器人 Webhook URL", now_str),
+        ("public_url", "http://localhost:8000", "CHANNEL", "系统对外访问根地址 (用于飞书/钉钉卡片跳转与审批)", now_str),
         ("cavitation_tolerance", "0.5", "THRESHOLD", "离心泵气蚀安全裕度阈值 (米)", now_str),
         ("valve_deadband_limit", "1.0", "THRESHOLD", "控制阀回差死区允许上限 (%)", now_str)
     ]

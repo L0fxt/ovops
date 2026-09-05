@@ -3,7 +3,7 @@ import json
 import datetime
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Union, Any
 from config.settings import settings
 
 router = APIRouter(prefix="/api/technician", tags=["现场技师移动端"])
@@ -17,7 +17,7 @@ class CloseOrderRequest(BaseModel):
     order_no: str
     tech_name: str = "陈工(资深运维技师)"
     loto_confirmed: bool = True
-    completed_steps: List[str]
+    completed_steps: Union[List[Any], str] = []
     tech_notes: str
     photo_evidence: Optional[str] = "inspection_evidence_sealed.jpg"
 
@@ -37,6 +37,30 @@ def get_technician_tasks():
     
     tasks = []
     for r in rows:
+        raw_steps = r["decomposed_steps"]
+        steps = []
+        try:
+            parsed = json.loads(raw_steps) if raw_steps else []
+            if isinstance(parsed, list):
+                steps = parsed
+            elif isinstance(parsed, str):
+                steps = [parsed]
+            else:
+                steps = [str(parsed)]
+        except Exception:
+            steps = [raw_steps] if raw_steps else []
+
+        raw_parts = r["required_parts"]
+        parts = []
+        try:
+            parsed_parts = json.loads(raw_parts) if raw_parts else []
+            if isinstance(parsed_parts, list):
+                parts = parsed_parts
+            else:
+                parts = [parsed_parts]
+        except Exception:
+            parts = []
+
         tasks.append({
             "order_no": r["order_no"],
             "equipment_id": r["equipment_id"],
@@ -45,8 +69,8 @@ def get_technician_tasks():
             "fault_type": r["fault_type"],
             "severity": r["severity"],
             "status": r["status"],
-            "decomposed_steps": json.loads(r["decomposed_steps"]),
-            "required_parts": json.loads(r["required_parts"]),
+            "decomposed_steps": steps,
+            "required_parts": parts,
             "assigned_tech": r["assigned_tech"],
             "created_at": r["created_at"],
             "resolution_note": r["resolution_note"]

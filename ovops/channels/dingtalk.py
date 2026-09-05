@@ -20,13 +20,16 @@ def build_dingtalk_action_card(equipment_id: str, fault_type: str, severity: str
 
 *请负责技师核对工况后点击下方按钮完成审批闭环。*
 """
+    base_url = (getattr(settings, "PUBLIC_URL", None) or "http://localhost:8000").rstrip("/")
+    approve_url = f"{base_url}/api/agent/approve-web?order_no={order_no}"
+
     payload = {
         "msgtype": "actionCard",
         "actionCard": {
             "title": title,
             "text": markdown,
             "singleTitle": f"确认核准工单 ({order_no})",
-            "singleURL": f"https://ovops.local/orders/{order_no}?action=approve"
+            "singleURL": approve_url
         }
     }
     

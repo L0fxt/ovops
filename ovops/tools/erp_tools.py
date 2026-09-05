@@ -92,6 +92,21 @@ def create_maintenance_work_order(
     now_str = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     order_no = f"WO-{now_str[-6:]}-{suffix}"
     created_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # 规范化步骤与备件，防止大模型输入原始字符串或双重编码
+    if isinstance(decomposed_steps, str):
+        try:
+            parsed = json.loads(decomposed_steps)
+            decomposed_steps = parsed if isinstance(parsed, list) else [parsed]
+        except Exception:
+            decomposed_steps = [decomposed_steps]
+
+    if isinstance(required_parts, str):
+        try:
+            parsed = json.loads(required_parts)
+            required_parts = parsed if isinstance(parsed, list) else [parsed]
+        except Exception:
+            required_parts = [required_parts]
     
     cursor.execute("""
     INSERT INTO work_orders (

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -37,6 +37,8 @@ def load_saved_configs():
                 settings.DINGTALK_WEBHOOK = v
             elif k == "feishu_webhook" and v:
                 settings.FEISHU_WEBHOOK = v
+            elif k == "public_url" and v:
+                settings.PUBLIC_URL = v
         conn.close()
     except Exception:
         pass
@@ -74,6 +76,11 @@ app.include_router(ws_router)
 app.include_router(system_router)
 app.include_router(technician_router)
 app.include_router(supervisor_router)
+
+@app.post("/api/channels/feishu/callback")
+async def feishu_callback_entry(request: Request):
+    from ovops.api.routes_agent import feishu_card_callback
+    return await feishu_card_callback(request)
 
 # 2. 挂载前端静态页面（必须在所有 API 之后挂载）
 web_dist = settings.BASE_DIR / "web" / "dist"

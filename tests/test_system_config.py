@@ -67,3 +67,53 @@ def test_channel_ping_invalid_webhook():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "error"
+
+def test_system_config_public_url():
+    # 验证 public_url 可读取并热更新
+    response = client.get("/api/system/config")
+    assert response.status_code == 200
+    data = response.json()
+    assert "public_url" in data
+    
+    update_payload = {
+        "configs": {
+            "public_url": "http://192.168.1.108:8000"
+        }
+    }
+    put_res = client.post("/api/system/config", json=update_payload)
+    assert put_res.status_code == 200
+    
+    check_res = client.get("/api/system/config")
+    assert check_res.json()["public_url"]["value"] == "http://192.168.1.108:8000"
+
+def test_feishu_callback_challenge():
+    # 验证飞书自建应用配置请求校验 (url_verification)
+    challenge_payload = {
+        "type": "url_verification",
+        "challenge": "sample_feishu_token_test_12345"
+    }
+    res = client.post("/api/channels/feishu/callback", json=challenge_payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data.get("challenge") == "sample_feishu_token_test_12345"
+
+def test_approve_web_endpoint():
+    # 1. 创建测试工单
+    from ovops.tools.erp_tools import create_maintenance_work_order
+    order = create_maintenance_work_order(
+        equipment_id="P-201",
+        fault_type="气蚀初生",
+        severity="HIGH",
+        decomposed_steps=["检查吸入管", "调整阀门"],
+        required_parts=[{"part_id": "SP-SEAL-01", "name": "机械密封", "quantity": 1}],
+        assigned_tech="测试技师"
+    )
+    order_no = order["order_no"]
+
+    # 2. 调用 /api/agent/approve-web
+    res = client.get(f"/api/agent/approve-web?order_no={order_no}")
+    assert res.status_code == 200
+    assert "text/html" in res.headers["content-type"]
+    assert "核准成功 · 备件已预扣出库" in res.text
+    assert order_no in res.text
+
