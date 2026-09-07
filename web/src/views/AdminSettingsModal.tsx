@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Cpu, Send, Sliders, CheckCircle2, AlertCircle, RefreshCw, Key, Globe, Shield, ExternalLink, Sparkles, Server, Activity, Wifi, Database } from 'lucide-react';
+import { X, Cpu, Send, Sliders, CheckCircle2, AlertCircle, RefreshCw, Key, Globe, Shield, ExternalLink, Sparkles, Server, Activity, Wifi, Database, BookOpen, FileText } from 'lucide-react';
 
 interface AdminSettingsModalProps {
   isOpen: boolean;
@@ -7,7 +7,7 @@ interface AdminSettingsModalProps {
 }
 
 export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'llm' | 'channels' | 'enterprise_api' | 'physics'>('llm');
+  const [activeTab, setActiveTab] = useState<'llm' | 'channels' | 'enterprise_api' | 'physics' | 'knowledge'>('llm');
   const [loading, setLoading] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
@@ -27,6 +27,12 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
   const [enterpriseAuthType, setEnterpriseAuthType] = useState<string>("bearer");
   const [dataSourceMode, setDataSourceMode] = useState<string>("API_FIRST");
   const [enterpriseTimeout, setEnterpriseTimeout] = useState<string>("3.0");
+
+  // RAG 知识库状态 (Phase 9)
+  const [knowledgeData, setKnowledgeData] = useState<any>(null);
+  const [knowledgeLoading, setKnowledgeLoading] = useState<boolean>(false);
+  const [reindexing, setReindexing] = useState<boolean>(false);
+  const [reindexMsg, setReindexMsg] = useState<string>("");
 
   // 测试与同步状态
   const [llmTestStatus, setLlmTestStatus] = useState<any>(null);
@@ -64,8 +70,38 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
         .then(r => r.json())
         .then(data => setAssetSyncStatus(data))
         .catch(() => {});
+
+      fetchKnowledge();
     }
   }, [isOpen]);
+
+  const fetchKnowledge = async () => {
+    setKnowledgeLoading(true);
+    try {
+      const res = await fetch('/api/system/knowledge/list');
+      const data = await res.json();
+      setKnowledgeData(data);
+    } catch (e) {
+      console.error("加载知识库失败:", e);
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  };
+
+  const handleReindexKnowledge = async () => {
+    setReindexing(true);
+    setReindexMsg("");
+    try {
+      const res = await fetch('/api/system/knowledge/reindex', { method: 'POST' });
+      const data = await res.json();
+      setReindexMsg(data.message || "重新索引完成");
+      fetchKnowledge();
+    } catch (e: any) {
+      setReindexMsg("重新索引失败: " + e.message);
+    } finally {
+      setReindexing(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -252,7 +288,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
           </button>
           <button
             onClick={() => setActiveTab('physics')}
-            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${
               activeTab === 'physics'
                 ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
                 : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
@@ -260,6 +296,17 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
           >
             <Sliders className="w-3.5 h-3.5" />
             工业机理阈值
+          </button>
+          <button
+            onClick={() => setActiveTab('knowledge')}
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${
+              activeTab === 'knowledge'
+                ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            RAG 专家规程知识库
           </button>
         </div>
 
@@ -776,6 +823,88 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
                   className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-mono focus:outline-none focus:border-blue-500"
                 />
                 <p className="text-[11px] text-zinc-500 mt-1">符合 GB/T 4213 工业控制阀国家标准，超出 1.0% 时触发阀杆卡阻预警。</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'knowledge' && (
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30 flex items-start justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    工业 SOP 向量知识库 (NumPy Dense + BM25 Hybrid RAG)
+                  </h4>
+                  <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mt-1 leading-relaxed">
+                    用于支撑专家规程匹配、应急步骤推荐与跨平台卡片下发。规程支持 Markdown 原生排版，引擎冷启动毫秒级向量化。
+                  </p>
+                  <div className="flex items-center gap-4 mt-2 text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">
+                    <span>文档总数: <strong className="text-zinc-800 dark:text-zinc-200">{knowledgeData?.total_documents ?? 0} 篇</strong></span>
+                    <span>上次索引: <strong className="text-zinc-800 dark:text-zinc-200">{knowledgeData?.last_indexed_time || '未索引'}</strong></span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={reindexing}
+                  onClick={handleReindexKnowledge}
+                  className="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 flex-shrink-0"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${reindexing ? 'animate-spin' : ''}`} />
+                  {reindexing ? '正在重建索引...' : '重新构建向量索引'}
+                </button>
+              </div>
+
+              {reindexMsg && (
+                <div className="p-2.5 rounded-md bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-white/10 text-xs text-zinc-700 dark:text-zinc-300 font-mono">
+                  {reindexMsg}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                  当前已收录工业标准化排障 SOP 规程清单:
+                </label>
+                {knowledgeLoading ? (
+                  <div className="py-6 text-center text-xs text-zinc-400">正在读取规程索引...</div>
+                ) : knowledgeData?.documents?.length > 0 ? (
+                  <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                    {knowledgeData.documents.map((doc: any) => (
+                      <div
+                        key={doc.doc_id}
+                        className="p-3 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50/50 dark:bg-zinc-950/40 hover:border-blue-500/40 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-semibold">
+                              {doc.doc_id}
+                            </span>
+                            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                              {doc.title}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-zinc-400 font-mono">v{doc.version}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1.5 text-[11px] text-zinc-500">
+                          <span>品类: <strong className="text-zinc-700 dark:text-zinc-300">{doc.category}</strong></span>
+                          <span>适配机型: <span className="font-mono">{doc.equipment_pattern}</span></span>
+                          <span>步骤数: <strong>{doc.step_count} 步</strong></span>
+                          <span>来源: {doc.source}</span>
+                        </div>
+                        {doc.keywords && doc.keywords.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {doc.keywords.map((kw: string, i: number) => (
+                              <span key={i} className="px-1.5 py-0.2 rounded text-[9px] bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                                #{kw}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-6 text-center text-xs text-zinc-400">暂无 SOP 规程文件</div>
+                )}
               </div>
             </div>
           )}

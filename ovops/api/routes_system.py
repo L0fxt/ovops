@@ -280,3 +280,27 @@ def get_enterprise_assets_sync_status():
     """获取企业设备台账与备件库同步状态快照 (Phase 8)"""
     from ovops.adapters.sync_service import asset_sync_service
     return asset_sync_service.get_sync_status()
+
+@router.get("/knowledge/list")
+def list_knowledge_sops():
+    """获取工业专家规程与 SOP 知识库清单及向量索引状态 (Phase 9)"""
+    from ovops.rag import vector_knowledge_store
+    return {
+        "status": "success",
+        "total_documents": len(vector_knowledge_store.chunks),
+        "last_indexed_time": vector_knowledge_store.last_indexed_time,
+        "sops_dir": str(vector_knowledge_store.sops_dir),
+        "documents": vector_knowledge_store.list_documents()
+    }
+
+@router.post("/knowledge/reindex")
+def reindex_knowledge_sops():
+    """手动触发全量重新扫描 Markdown SOP 规程文件并构建稠密与稀疏向量索引 (Phase 9)"""
+    from ovops.rag import vector_knowledge_store
+    count = vector_knowledge_store.reindex()
+    return {
+        "status": "success",
+        "indexed_documents": count,
+        "last_indexed_time": vector_knowledge_store.last_indexed_time,
+        "message": f"成功重新构建 {count} 篇工业 SOP 专家规程的稠密语义特征向量与 BM25 词频索引"
+    }

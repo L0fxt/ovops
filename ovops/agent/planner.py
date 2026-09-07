@@ -289,8 +289,8 @@ class AutonomousGoalPlanner:
                 hyst = cached_physics.get("calculate_valve_hysteresis") or calculate_valve_hysteresis(target_eq)
                 cached_physics.update({"fault_type": "控制阀阀杆干摩擦卡阻与填料硬化", "severity": "HIGH", "hysteresis": hyst})
 
-        # 5. 确保工单实体已创建
-        if not cached_work_order:
+        # 5. 确保工单实体已创建且结构完整有效
+        if not cached_work_order or not isinstance(cached_work_order, dict) or "order_no" not in cached_work_order:
             req_parts = (
                 [{"part_code": "SP-P201-IMP", "name": "超耐酸闭式高硅叶轮组件", "quantity": 1}]
                 if target_eq == "P-201" else
