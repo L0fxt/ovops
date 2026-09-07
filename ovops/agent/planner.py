@@ -8,6 +8,7 @@ import httpx
 
 from config.settings import settings
 from ovops.simulator.fault_generator import telemetry_sim
+from ovops.adapters import data_source_router
 from ovops.agent.registry import get_all_tool_schemas, TOOL_REGISTRY
 from ovops.tools.physics_tools import calculate_pump_cavitation, analyze_vibration_fft, calculate_valve_hysteresis
 from ovops.tools.erp_tools import query_equipment_ledger, query_spare_parts_inventory, create_maintenance_work_order
@@ -63,8 +64,11 @@ class AutonomousGoalPlanner:
             else:
                 target_eq = "P-201"
 
-        tick = telemetry_sim.sample_tick()
-        telemetry = tick["p201"] if target_eq == "P-201" else tick["v102"]
+        # 从数据源路由器获取当前设备实时测点快照（企业真实API优先）
+        telemetry = data_source_router.get_equipment_telemetry(target_eq)
+        if not telemetry:
+            tick = telemetry_sim.sample_tick()
+            telemetry = tick["p201"] if target_eq == "P-201" else tick["v102"]
 
         base_url, api_key, model = get_active_llm_credentials()
 

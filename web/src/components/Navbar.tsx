@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, Cpu, CheckCircle2, AlertOctagon, RefreshCw, Sun, Moon } from 'lucide-react';
+import { ShieldAlert, Cpu, CheckCircle2, AlertOctagon, RefreshCw, Sun, Moon, Server } from 'lucide-react';
 import { RoleSwitcher, UserRole } from './RoleSwitcher';
 
 interface NavbarProps {
@@ -13,6 +13,7 @@ interface NavbarProps {
   onTriggerAgent: (eqId: string) => void;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
+  dataSource?: string;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -25,7 +26,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   isInvestigating,
   onTriggerAgent,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  dataSource = "SIMULATOR"
 }) => {
   return (
     <header className="w-full border-b border-zinc-200 dark:border-white/10 bg-white/95 dark:bg-[#09090B]/90 backdrop-blur-md sticky top-0 z-50 px-4 lg:px-6 py-3 transition-colors">
@@ -121,6 +123,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Moon className="w-4 h-4 text-blue-600" strokeWidth={1.5} />
             )}
           </button>
+
+          <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono border whitespace-nowrap flex-shrink-0 ${
+            dataSource === 'ENTERPRISE_API'
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+              : dataSource === 'SIMULATOR_FALLBACK'
+              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+              : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
+          }`}>
+            <Server className="w-3.5 h-3.5" />
+            <span className="text-[11px]">
+              {dataSource === 'ENTERPRISE_API' ? '企业真实API' : dataSource === 'SIMULATOR_FALLBACK' ? 'API超时·已降级' : '机理仿真流'}
+            </span>
+          </div>
 
           <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs whitespace-nowrap flex-shrink-0">
             <span className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-400'}`} />

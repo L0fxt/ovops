@@ -39,7 +39,7 @@ def get_system_configs():
     for r in rows:
         val = r["value"]
         # 对敏感密钥进行前端脱敏
-        if "api_key" in r["key"] and val and len(val) > 8:
+        if ("api_key" in r["key"] or "token" in r["key"]) and val and len(val) > 8:
             masked_val = f"{val[:3]}******{val[-4:]}"
         else:
             masked_val = val
@@ -82,9 +82,26 @@ def update_system_configs(req: UpdateConfigRequest):
             settings.FEISHU_WEBHOOK = v_clean
         elif k == "public_url":
             settings.PUBLIC_URL = v_clean
+        elif k == "enterprise_api_base_url":
+            settings.ENTERPRISE_API_BASE_URL = v_clean
+        elif k == "enterprise_api_token":
+            settings.ENTERPRISE_API_TOKEN = v_clean
+        elif k == "enterprise_api_auth_type":
+            settings.ENTERPRISE_API_AUTH_TYPE = v_clean
+        elif k == "data_source_mode":
+            settings.DATA_SOURCE_MODE = v_clean
+        elif k == "enterprise_api_timeout":
+            try:
+                settings.ENTERPRISE_API_TIMEOUT = float(v_clean)
+            except Exception:
+                pass
             
     conn.commit()
     conn.close()
+
+    from ovops.adapters import data_source_router
+    data_source_router.reload_config()
+
     return {"status": "success", "message": "系统配置已成功保存并即时热重载生效！"}
 
 @router.post("/test-llm")
@@ -211,3 +228,43 @@ async def test_channel_connectivity(req: TestChannelRequest):
                 return {"status": "error", "message": f"发送失败，HTTP {resp.status_code}: {resp.text}"}
     except Exception as e:
         return {"status": "error", "message": f"Webhook 请求异常: {str(e)}"}
+
+class TestEnterpriseApiRequest(BaseModel):
+    base_url: Optional[str] = None
+    token: Optional[str] = None
+    auth_type: Optional[str] = "bearer"
+    timeout: Optional[float] = 3.0
+
+@router.post("/test-enterprise-api")
+def test_enterprise_api_connectivity(req: TestEnterpriseApiRequest):
+    """测试企业设备数据接口连通性与设备列表解析"""
+    from ovops.adapters.enterprise_api_client import EnterpriseApiClient
+    
+    base_url = (req.base_url or getattr(settings, "ENTERPRISE_API_BASE_URL", "")).strip()
+    token = (req.token or "").strip()
+    auth_type = req.auth_type or getattr(settings, "ENTERPRISE_API_AUTH_TYPE", "bearer")
+    timeout = req.timeout or getattr(settings, "ENTERPRISE_API_TIMEOUT", 3.0)
+
+    if not token or "*" in token:
+        saved_token = getattr(settings, "ENTERPRISE_API_TOKEN", "")
+        if saved_token and "*" not in saved_token:
+            token = saved_token
+        else:
+            try:
+                conn = get_db()
+                c = conn.cursor()
+                c.execute("SELECT value FROM system_configs WHERE key = 'enterprise_api_token'")
+                r = c.fetchone()
+                conn.close()
+                if r and r["value"] and "*" not in r["value"]:
+                    token = r["value"].strip()
+            except Exception:
+                pass
+
+    client = EnterpriseApiClient(
+        base_url=base_url,
+        token=token,
+        auth_type=auth_type,
+        timeout=timeout
+    )
+    return client.ping()

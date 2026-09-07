@@ -17,7 +17,7 @@
 | 原生 Function Calling 多轮工具调度 | ✅ 100% | 7 大工具 Schema 注册 + 动态调度 | 稳定生产可用 |
 | 物理机理求解引擎 | ✅ 100% | NumPy/SciPy (NPSHa、FFT、回差拟合) | 算法成熟，可直接对接真实数据 |
 | ERP 数据库穿透 | ⚠️ 70% | 内置 SQLite 模拟种子数据 | **需对接企业真实 ERP 数据库/API** |
-| 设备遥测时序数据 | ⚠️ 30% | 纯数学仿真器 (`fault_generator.py`) | **需对接企业设备数据查询接口** |
+| 设备遥测时序数据 | ✅ 90% | 企业 API 优先 + 自动熔断降级 + 本地机理仿真器双模就绪 | 生产可用，可直接配置企业端点 |
 | RAG 专家知识库 | ⚠️ 40% | 2 条硬编码知识条目 | **需向量化真实 SOP 文档** |
 | 钉钉/飞书协同通道 | ✅ 90% | 真实 Webhook + multi_url 跳转审批 | 生产可用，需企业自建应用升级 |
 | 四大角色端前端 | ✅ 95% | 完整 RBAC + 全端 UI | 需动态设备列表替换硬编码 |
@@ -199,23 +199,23 @@ enterprise_api:
 
 ## 📅 四、生产级演进里程碑 (Production Roadmap)
 
-### Phase 7：企业设备数据 API 对接层 `[P0 最高优先]`
+### Phase 7：企业设备数据 API 对接层 `[P0 最高优先]` **✅ 100% 已交付**
 
 > **目标**：替换仿真器，从企业真实设备数据查询接口获取实时/历史传感器数据。
-> **预计工期**：3-5 个工作日
+> **交付成果**：已实现企业 API 适配器、异构字段归一化解析器、高频 TTL 滑动缓存、健康探活熔断保护、双模数据源路由器（API优先/纯API/纯仿真器）、前端管理控制台对接面板与数据源指示徽章。
 
-| # | 子任务 | 优先级 | 说明 |
+| # | 子任务 | 优先级 | 交付状态与成果 |
 | :---: | :--- | :---: | :--- |
-| 7.1 | **设计企业 API 适配层抽象接口** (`adapters/base_adapter.py`) | P0 | 定义 `get_device_list()`、`get_realtime_data(device_id)`、`get_history_data(device_id, start, end)` 标准抽象方法 |
-| 7.2 | **实现企业 HTTP API Client** (`adapters/enterprise_api_client.py`) | P0 | 基于 `httpx.AsyncClient`，支持 Bearer Token / API Key 鉴权、超时重试、连接池 |
-| 7.3 | **实现字段映射层** (`adapters/data_mapper.py`) | P0 | 读取 YAML 映射配置，将企业不规范/异构字段名统一转换为内部标准模型字段 |
-| 7.4 | **实现本地缓存层** (`adapters/cache.py`) | P0 | SQLite 或 Redis 缓存最近 N 秒数据，避免高频重复请求企业 API；支持 TTL 过期策略 |
-| 7.5 | **实现数据源路由器** (`adapters/__init__.py` 中的 `DataSourceRouter`) | P0 | 企业 API 优先 → 超时/异常自动降级到仿真器 → 恢复后自动切回 |
-| 7.6 | **重构 `routes_telemetry.py`** | P0 | `/api/telemetry/latest` 和 `/history` 改为从 `DataSourceRouter` 取数，而非直接调用 `telemetry_sim` |
-| 7.7 | **重构物理工具入参来源** | P0 | `calculate_pump_cavitation` 等工具函数的入口数据改为从适配层传入，而非从仿真器 |
-| 7.8 | **API 可用性探活与监控** (`adapters/health_checker.py`) | P0 | 定时健康检查企业 API 端点，记录延迟与成功率，前端管理面板可视化 |
-| 7.9 | **后台管理面板增加"企业 API 配置"** | P0 | 在 AdminSettingsModal 新增 Tab，用于配置企业 API 地址、Token、轮询间隔、字段映射、测试连通性 |
-| 7.10 | **保留故障注入演示模式** | P1 | 在管理面板增加"数据源模式切换"：`企业API`/`仿真器`/`混合模式(API优先)`，方便展演与调试 |
+| 7.1 | **设计企业 API 适配层抽象接口** (`adapters/base_adapter.py`) | P0 | **✅ 已交付**：规范 `DeviceMeasurement` 模型与 `BaseDeviceAdapter` 接口 |
+| 7.2 | **实现企业 HTTP API Client** (`adapters/enterprise_api_client.py`) | P0 | **✅ 已交付**：基于 `httpx`，支持 Bearer/API-Key 鉴权、超时控制与自检 ping |
+| 7.3 | **实现字段映射层** (`adapters/data_mapper.py`) | P0 | **✅ 已交付**：支持大小写不敏感与常见测点别名映射、bar/MPa 自动换算 |
+| 7.4 | **实现本地缓存层** (`adapters/cache.py`) | P0 | **✅ 已交付**：线程安全滑动窗口 TTL 缓存，防高频 WebSocket/轮询压垮企业端点 |
+| 7.5 | **实现数据源路由器** (`adapters/router.py`) | P0 | **✅ 已交付**：`DataSourceRouter` 支持企业 API 优先，异常自动降级至高保真仿真器 |
+| 7.6 | **重构 `routes_telemetry.py` 与推流** | P0 | **✅ 已交付**：测点获取与 WebSocket 推流全面走路由器，新增 `/source-status` 端点 |
+| 7.7 | **重构物理工具与 Agent 入参来源** | P0 | **✅ 已交付**：`calculate_valve_hysteresis` 与 `planner.execute` 优先读取路由器测点快照 |
+| 7.8 | **API 可用性探活与监控** (`adapters/health_checker.py`) | P0 | **✅ 已交付**：连续 3 次失败触发熔断降级，每隔 15 秒静默探活以实现自动恢复 |
+| 7.9 | **后台管理面板增加"企业 API 配置"** | P0 | **✅ 已交付**：AdminSettingsModal 新增 Tab，支持热保存与在线连通性探测 (Ping) |
+| 7.10 | **保留故障注入演示模式** | P1 | **✅ 已交付**：支持 `API_FIRST` / `API_ONLY` / `SIMULATOR_ONLY` 三模平滑切换 |
 
 ---
 

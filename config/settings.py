@@ -31,4 +31,11 @@ class Settings(BaseModel):
     PORT: int = int(os.getenv("PORT", "8000"))
     PUBLIC_URL: str = os.getenv("PUBLIC_URL", "http://localhost:8000")
 
+    # 企业设备数据查询 API 接口配置 (Phase 7)
+    ENTERPRISE_API_BASE_URL: str = os.getenv("ENTERPRISE_API_BASE_URL", "")
+    ENTERPRISE_API_TOKEN: str = os.getenv("ENTERPRISE_API_TOKEN", "")
+    ENTERPRISE_API_AUTH_TYPE: str = os.getenv("ENTERPRISE_API_AUTH_TYPE", "bearer") # bearer | api_key | none
+    DATA_SOURCE_MODE: str = os.getenv("DATA_SOURCE_MODE", "API_FIRST") # API_FIRST | API_ONLY | SIMULATOR_ONLY
+    ENTERPRISE_API_TIMEOUT: float = float(os.getenv("ENTERPRISE_API_TIMEOUT", "3.0"))
+
 settings = Settings()

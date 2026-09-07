@@ -17,6 +17,7 @@ export function App() {
 
   const [faultMode, setFaultMode] = useState<string>("NORMAL");
   const [wsConnected, setWsConnected] = useState<boolean>(false);
+  const [dataSource, setDataSource] = useState<string>("SIMULATOR");
   const [isInvestigating, setIsInvestigating] = useState<boolean>(false);
   
   const [p201, setP201] = useState<any>(null);
@@ -93,6 +94,9 @@ export function App() {
           }
           if (data.fault_mode) {
             setFaultMode(data.fault_mode);
+          }
+          if (data._source) {
+            setDataSource(data._source);
           }
         } catch (err) {
           console.error("解析 WS 帧异常:", err);
@@ -209,6 +213,7 @@ export function App() {
         onTriggerAgent={handleTriggerAgent}
         theme={theme}
         onToggleTheme={toggleTheme}
+        dataSource={dataSource}
       />
 
       {/* 主体画布：Bento 工业栅格 */}

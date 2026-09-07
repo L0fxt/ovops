@@ -188,7 +188,12 @@ def init_erp_database():
         ("feishu_webhook", "", "CHANNEL", "飞书自定义机器人 Webhook URL", now_str),
         ("public_url", "http://localhost:8000", "CHANNEL", "系统对外访问根地址 (用于飞书/钉钉卡片跳转与审批)", now_str),
         ("cavitation_tolerance", "0.5", "THRESHOLD", "离心泵气蚀安全裕度阈值 (米)", now_str),
-        ("valve_deadband_limit", "1.0", "THRESHOLD", "控制阀回差死区允许上限 (%)", now_str)
+        ("valve_deadband_limit", "1.0", "THRESHOLD", "控制阀回差死区允许上限 (%)", now_str),
+        ("enterprise_api_base_url", "", "ENTERPRISE_API", "企业设备数据查询 API 根地址 (留空则使用仿真器)", now_str),
+        ("enterprise_api_token", "", "ENTERPRISE_API", "企业 API 认证鉴权凭证 (Token/Key)", now_str),
+        ("enterprise_api_auth_type", "bearer", "ENTERPRISE_API", "企业 API 认证鉴权类型 (bearer / api_key / none)", now_str),
+        ("data_source_mode", "API_FIRST", "ENTERPRISE_API", "数据源运行模式 (API_FIRST:企业优先降级仿真 / API_ONLY:纯企业 / SIMULATOR_ONLY:纯仿真)", now_str),
+        ("enterprise_api_timeout", "3.0", "ENTERPRISE_API", "企业 API 查询超时时间 (秒)", now_str)
     ]
     cursor.executemany("INSERT INTO system_configs VALUES (?,?,?,?,?)", configs_data)
     

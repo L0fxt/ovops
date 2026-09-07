@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Cpu, Send, Sliders, CheckCircle2, AlertCircle, RefreshCw, Key, Globe, Shield, ExternalLink, Sparkles } from 'lucide-react';
+import { X, Cpu, Send, Sliders, CheckCircle2, AlertCircle, RefreshCw, Key, Globe, Shield, ExternalLink, Sparkles, Server, Activity, Wifi } from 'lucide-react';
 
 interface AdminSettingsModalProps {
   isOpen: boolean;
@@ -7,7 +7,7 @@ interface AdminSettingsModalProps {
 }
 
 export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'llm' | 'channels' | 'physics'>('llm');
+  const [activeTab, setActiveTab] = useState<'llm' | 'channels' | 'enterprise_api' | 'physics'>('llm');
   const [loading, setLoading] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
@@ -21,11 +21,20 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
   const [cavitationTolerance, setCavitationTolerance] = useState<string>("0.5");
   const [deadbandLimit, setDeadbandLimit] = useState<string>("1.0");
 
+  // 企业设备数据 API 对接状态 (Phase 7)
+  const [enterpriseBaseUrl, setEnterpriseBaseUrl] = useState<string>("");
+  const [enterpriseToken, setEnterpriseToken] = useState<string>("");
+  const [enterpriseAuthType, setEnterpriseAuthType] = useState<string>("bearer");
+  const [dataSourceMode, setDataSourceMode] = useState<string>("API_FIRST");
+  const [enterpriseTimeout, setEnterpriseTimeout] = useState<string>("3.0");
+
   // 测试结果状态
   const [llmTestStatus, setLlmTestStatus] = useState<any>(null);
   const [llmTesting, setLlmTesting] = useState<boolean>(false);
   const [channelTestStatus, setChannelTestStatus] = useState<any>(null);
   const [channelTesting, setChannelTesting] = useState<boolean>(false);
+  const [enterpriseTestStatus, setEnterpriseTestStatus] = useState<any>(null);
+  const [enterpriseTesting, setEnterpriseTesting] = useState<boolean>(false);
 
   // 加载系统配置
   useEffect(() => {
@@ -41,6 +50,11 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
           if (data.public_url) setPublicUrl(data.public_url.value);
           if (data.cavitation_tolerance) setCavitationTolerance(data.cavitation_tolerance.value);
           if (data.valve_deadband_limit) setDeadbandLimit(data.valve_deadband_limit.value);
+          if (data.enterprise_api_base_url) setEnterpriseBaseUrl(data.enterprise_api_base_url.value);
+          if (data.enterprise_api_token) setEnterpriseToken(data.enterprise_api_token.value);
+          if (data.enterprise_api_auth_type) setEnterpriseAuthType(data.enterprise_api_auth_type.value);
+          if (data.data_source_mode) setDataSourceMode(data.data_source_mode.value);
+          if (data.enterprise_api_timeout) setEnterpriseTimeout(data.enterprise_api_timeout.value);
         })
         .catch(err => console.error("加载配置失败:", err));
     }
@@ -65,7 +79,12 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
             feishu_webhook: feishuUrl,
             public_url: publicUrl,
             cavitation_tolerance: cavitationTolerance,
-            valve_deadband_limit: deadbandLimit
+            valve_deadband_limit: deadbandLimit,
+            enterprise_api_base_url: enterpriseBaseUrl,
+            enterprise_api_token: enterpriseToken,
+            enterprise_api_auth_type: enterpriseAuthType,
+            data_source_mode: dataSourceMode,
+            enterprise_api_timeout: enterpriseTimeout
           }
         })
       });
@@ -123,6 +142,30 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
     }
   };
 
+  // 测试企业设备数据 API 连通性 (Phase 7)
+  const handleTestEnterpriseApi = async () => {
+    setEnterpriseTesting(true);
+    setEnterpriseTestStatus(null);
+    try {
+      const res = await fetch('/api/system/test-enterprise-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          base_url: enterpriseBaseUrl,
+          token: enterpriseToken.includes("******") ? undefined : enterpriseToken,
+          auth_type: enterpriseAuthType,
+          timeout: parseFloat(enterpriseTimeout) || 3.0
+        })
+      });
+      const data = await res.json();
+      setEnterpriseTestStatus(data);
+    } catch (e: any) {
+      setEnterpriseTestStatus({ status: 'error', message: e.message });
+    } finally {
+      setEnterpriseTesting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
       <div className="w-full max-w-2xl rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors">
@@ -151,10 +194,10 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
         </div>
 
         {/* 标签栏 */}
-        <div className="flex items-center gap-2 px-6 pt-3 border-b border-zinc-200 dark:border-white/10 bg-zinc-50/50 dark:bg-zinc-950/40">
+        <div className="flex items-center gap-2 px-6 pt-3 border-b border-zinc-200 dark:border-white/10 bg-zinc-50/50 dark:bg-zinc-950/40 overflow-x-auto">
           <button
             onClick={() => setActiveTab('llm')}
-            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${
               activeTab === 'llm'
                 ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
                 : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
@@ -164,8 +207,19 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
             大模型服务设置
           </button>
           <button
+            onClick={() => setActiveTab('enterprise_api')}
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${
+              activeTab === 'enterprise_api'
+                ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
+            }`}
+          >
+            <Server className="w-3.5 h-3.5" />
+            企业数据接口 (Enterprise API)
+          </button>
+          <button
             onClick={() => setActiveTab('channels')}
-            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${
               activeTab === 'channels'
                 ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
                 : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
@@ -411,6 +465,134 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
                   {llmTestStatus.status !== 'success' && (
                     <div className="pt-1 border-t border-red-200 dark:border-red-500/20 text-[10px] text-red-700 dark:text-red-400 font-sans">
                       💡 排查建议：1. 请确认您的 API Key 具有有效额度且未过期；2. 请确认 Base URL 与 Model 名称为 DeepSeek 官方支持版本；3. 若无外部网络，可清空 Key 以启用高保真离线机理引擎。
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'enterprise_api' && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-md bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-500/20 text-xs text-blue-800 dark:text-blue-300 flex items-start gap-2">
+                <Server className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold mb-0.5">企业现场工业设备数据查询对接 (Phase 7 生产级适配)</p>
+                  <p className="text-[11px] opacity-90">
+                    通过企业提供的只读查询接口拉取实时传感器时序（温度、振动、流量、压力等）。系统采用双模路由机制，未配地址或企业端点故障时自动平滑降级至内置物理仿真器。
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-zinc-700 dark:text-zinc-300 font-medium mb-1">
+                  数据源调度模式 (Data Source Mode)
+                </label>
+                <select
+                  value={dataSourceMode}
+                  onChange={(e) => setDataSourceMode(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-medium focus:outline-none focus:border-blue-500"
+                >
+                  <option value="API_FIRST">企业真实 API 优先 (推荐：异常/超时自动平滑降级至仿真器)</option>
+                  <option value="API_ONLY">仅企业真实 API (严格生产模式：接口不可用时告警拦截)</option>
+                  <option value="SIMULATOR_ONLY">仅本地高保真仿真器 (离线演练与展演大赛模式)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-zinc-700 dark:text-zinc-300 font-medium mb-1">
+                  企业设备数据查询 API 根地址 (Base URL)
+                </label>
+                <input
+                  type="text"
+                  value={enterpriseBaseUrl}
+                  onChange={(e) => setEnterpriseBaseUrl(e.target.value)}
+                  placeholder="http://192.168.1.100:5000/api 或 https://iot.enterprise.local/api"
+                  className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-mono focus:outline-none focus:border-blue-500 text-xs"
+                />
+                <p className="text-[11px] text-zinc-500 mt-1">
+                  需符合设备数据只读查询规约（支持 GET /devices 与 GET /devices/:id/realtime-data）。留空则使用仿真器。
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-700 dark:text-zinc-300 font-medium mb-1">
+                    接口鉴权方式 (Auth Type)
+                  </label>
+                  <select
+                    value={enterpriseAuthType}
+                    onChange={(e) => setEnterpriseAuthType(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-medium focus:outline-none focus:border-blue-500 text-xs"
+                  >
+                    <option value="bearer">Bearer Token (Authorization: Bearer ...)</option>
+                    <option value="api_key">API Key (X-API-Key: ...)</option>
+                    <option value="none">无鉴权 / 内网直通</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-700 dark:text-zinc-300 font-medium mb-1">
+                    单次请求超时时间 (秒)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    max="10.0"
+                    value={enterpriseTimeout}
+                    onChange={(e) => setEnterpriseTimeout(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-mono focus:outline-none focus:border-blue-500 text-xs"
+                  />
+                </div>
+              </div>
+
+              {enterpriseAuthType !== 'none' && (
+                <div>
+                  <label className="block text-zinc-700 dark:text-zinc-300 font-medium mb-1">
+                    企业 API 认证鉴权凭证 (Token / Key)
+                  </label>
+                  <input
+                    type="text"
+                    value={enterpriseToken}
+                    onChange={(e) => setEnterpriseToken(e.target.value)}
+                    placeholder="输入由企业运维团队颁发的访问令牌或密钥"
+                    className="w-full px-3 py-2 rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-zinc-100 font-mono focus:outline-none focus:border-blue-500 text-xs"
+                  />
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-zinc-200 dark:border-white/10 flex items-center justify-between">
+                <button
+                  type="button"
+                  disabled={enterpriseTesting}
+                  onClick={handleTestEnterpriseApi}
+                  className="px-3 py-1.5 rounded bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 text-xs"
+                >
+                  <Wifi className={`w-3.5 h-3.5 ${enterpriseTesting ? 'animate-spin' : ''}`} />
+                  {enterpriseTesting ? '正在探测连通性...' : '一键测试企业接口连通性与设备解析'}
+                </button>
+              </div>
+
+              {enterpriseTestStatus && (
+                <div className={`p-3 rounded-md text-xs space-y-1.5 font-mono ${
+                  enterpriseTestStatus.status === 'success'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+                    : 'bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-500/30 text-red-800 dark:text-red-300'
+                }`}>
+                  <div className="flex items-center justify-between font-bold">
+                    <span>{enterpriseTestStatus.status === 'success' ? '✅ 企业接口连通成功' : '❌ 接口探测失败'}</span>
+                    {enterpriseTestStatus.latency_ms && (
+                      <span>延迟: {enterpriseTestStatus.latency_ms} ms</span>
+                    )}
+                  </div>
+                  <div>{enterpriseTestStatus.message}</div>
+                  {enterpriseTestStatus.devices_detected !== undefined && (
+                    <div className="text-[11px] text-zinc-600 dark:text-zinc-400">
+                      在线设备数: {enterpriseTestStatus.devices_detected} 台
+                      {enterpriseTestStatus.sample_devices?.length > 0 && (
+                        <span>（检出示例: {enterpriseTestStatus.sample_devices.join(', ')}）</span>
+                      )}
                     </div>
                   )}
                 </div>

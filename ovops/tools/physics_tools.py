@@ -4,6 +4,7 @@ from scipy.fft import rfft, rfftfreq
 from typing import Dict, Any, List
 from ovops.agent.registry import tool
 from ovops.simulator.fault_generator import telemetry_sim
+from ovops.adapters import data_source_router
 
 @tool
 def calculate_pump_cavitation(equipment_id: str, inlet_pressure_kpa: float, fluid_temp_c: float = 45.0, flow_rate_m3h: float = 120.0) -> Dict[str, Any]:
@@ -91,8 +92,11 @@ def calculate_valve_hysteresis(equipment_id: str, deadband_sample_count: int = 1
         equipment_id: 阀门位号，如 V-102
         deadband_sample_count: 采样点数
     """
-    # 从时序历史中提取最近的 SP 与 PV
-    history = telemetry_sim.history_v102[-deadband_sample_count:]
+    # 从时序历史中提取最近的 SP 与 PV（优先从路由器读取，兼容仿真降级）
+    hist_data = data_source_router.get_telemetry_history()
+    history = hist_data.get("v102", [])[-deadband_sample_count:]
+    if not history:
+        history = telemetry_sim.history_v102[-deadband_sample_count:]
     if not history:
         return {"error": "暂无充足控制阀历史时序"}
         

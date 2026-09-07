@@ -39,7 +39,23 @@ def load_saved_configs():
                 settings.FEISHU_WEBHOOK = v
             elif k == "public_url" and v:
                 settings.PUBLIC_URL = v
+            elif k == "enterprise_api_base_url":
+                settings.ENTERPRISE_API_BASE_URL = v
+            elif k == "enterprise_api_token":
+                settings.ENTERPRISE_API_TOKEN = v
+            elif k == "enterprise_api_auth_type" and v:
+                settings.ENTERPRISE_API_AUTH_TYPE = v
+            elif k == "data_source_mode" and v:
+                settings.DATA_SOURCE_MODE = v
+            elif k == "enterprise_api_timeout" and v:
+                try:
+                    settings.ENTERPRISE_API_TIMEOUT = float(v)
+                except Exception:
+                    pass
         conn.close()
+        
+        from ovops.adapters import data_source_router
+        data_source_router.reload_config()
     except Exception:
         pass
 
