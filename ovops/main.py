@@ -54,8 +54,9 @@ def load_saved_configs():
                     pass
         conn.close()
         
-        from ovops.adapters import data_source_router
+        from ovops.adapters import data_source_router, asset_sync_service
         data_source_router.reload_config()
+        asset_sync_service.sync_equipments()
     except Exception:
         pass
 

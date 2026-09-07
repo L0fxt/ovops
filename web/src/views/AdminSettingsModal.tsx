@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Cpu, Send, Sliders, CheckCircle2, AlertCircle, RefreshCw, Key, Globe, Shield, ExternalLink, Sparkles, Server, Activity, Wifi } from 'lucide-react';
+import { X, Cpu, Send, Sliders, CheckCircle2, AlertCircle, RefreshCw, Key, Globe, Shield, ExternalLink, Sparkles, Server, Activity, Wifi, Database } from 'lucide-react';
 
 interface AdminSettingsModalProps {
   isOpen: boolean;
@@ -28,13 +28,15 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
   const [dataSourceMode, setDataSourceMode] = useState<string>("API_FIRST");
   const [enterpriseTimeout, setEnterpriseTimeout] = useState<string>("3.0");
 
-  // 测试结果状态
+  // 测试与同步状态
   const [llmTestStatus, setLlmTestStatus] = useState<any>(null);
   const [llmTesting, setLlmTesting] = useState<boolean>(false);
   const [channelTestStatus, setChannelTestStatus] = useState<any>(null);
   const [channelTesting, setChannelTesting] = useState<boolean>(false);
   const [enterpriseTestStatus, setEnterpriseTestStatus] = useState<any>(null);
   const [enterpriseTesting, setEnterpriseTesting] = useState<boolean>(false);
+  const [assetSyncStatus, setAssetSyncStatus] = useState<any>(null);
+  const [assetSyncing, setAssetSyncing] = useState<boolean>(false);
 
   // 加载系统配置
   useEffect(() => {
@@ -57,6 +59,11 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
           if (data.enterprise_api_timeout) setEnterpriseTimeout(data.enterprise_api_timeout.value);
         })
         .catch(err => console.error("加载配置失败:", err));
+
+      fetch('/api/system/sync-status')
+        .then(r => r.json())
+        .then(data => setAssetSyncStatus(data))
+        .catch(() => {});
     }
   }, [isOpen]);
 
@@ -163,6 +170,21 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
       setEnterpriseTestStatus({ status: 'error', message: e.message });
     } finally {
       setEnterpriseTesting(false);
+    }
+  };
+
+  // 手动同步企业设备台账与备件 (Phase 8)
+  const handleSyncAssets = async () => {
+    setAssetSyncing(true);
+    setAssetSyncStatus(null);
+    try {
+      const res = await fetch('/api/system/sync-assets', { method: 'POST' });
+      const data = await res.json();
+      setAssetSyncStatus(data);
+    } catch (e: any) {
+      setAssetSyncStatus({ status: 'error', message: e.message });
+    } finally {
+      setAssetSyncing(false);
     }
   };
 
@@ -597,6 +619,52 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
                   )}
                 </div>
               )}
+
+              {/* Phase 8 资产台账与备件库同步 */}
+              <div className="pt-3 border-t border-zinc-200 dark:border-white/10 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-zinc-800 dark:text-zinc-200 font-semibold text-xs">
+                    <Database className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                    <span>企业资产台账与备件主数据同步 (Phase 8)</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={assetSyncing}
+                    onClick={handleSyncAssets}
+                    className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 text-xs shadow-sm"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${assetSyncing ? 'animate-spin' : ''}`} />
+                    {assetSyncing ? '正在拉取台账...' : '立即同步企业台账'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  从企业 API GET /devices 获取工业设备台账与备件，增量更新本地 SQLite 数据库并绑定物理机理铭牌参数。
+                </p>
+
+                {assetSyncStatus && (
+                  <div className={`p-2.5 rounded-md text-xs font-mono space-y-1 ${
+                    assetSyncStatus.status === 'success'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+                      : assetSyncStatus.status === 'skipped'
+                      ? 'bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-zinc-700 dark:text-zinc-300'
+                      : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-300'
+                  }`}>
+                    <div className="flex items-center justify-between font-bold">
+                      <span>{assetSyncStatus.status === 'success' ? '✅ 台账同步完成' : assetSyncStatus.status === 'skipped' ? 'ℹ️ 维持本地台账' : '⚠️ 同步状态提醒'}</span>
+                      {assetSyncStatus.duration_ms !== undefined && (
+                        <span>耗时: {assetSyncStatus.duration_ms} ms</span>
+                      )}
+                    </div>
+                    <div>{assetSyncStatus.message}</div>
+                    {assetSyncStatus.synced_count !== undefined && assetSyncStatus.synced_count > 0 && (
+                      <div className="text-[11px] opacity-80">
+                        同步设备数: {assetSyncStatus.synced_count} 台 | 备件数: {assetSyncStatus.parts_synced_count || 0} 件
+                        {assetSyncStatus.sync_time && <span> (时间: {assetSyncStatus.sync_time})</span>}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

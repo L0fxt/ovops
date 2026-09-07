@@ -5,36 +5,43 @@ from typing import Dict, Any, List
 from ovops.agent.registry import tool
 from ovops.simulator.fault_generator import telemetry_sim
 from ovops.adapters import data_source_router
+from ovops.tools.erp_tools import query_equipment_ledger
 
 @tool
 def calculate_pump_cavitation(equipment_id: str, inlet_pressure_kpa: float, fluid_temp_c: float = 45.0, flow_rate_m3h: float = 120.0) -> Dict[str, Any]:
     """工业机理计算：对离心泵进行有效汽蚀余量 (NPSHa) 严格水力学核算与气蚀风险研判。
+    动态穿透 ERP 台账铭牌，读取出厂 NPSHr、管道公称通径与介质密度。
     Args:
         equipment_id: 设备编号，如 P-201
         inlet_pressure_kpa: 入口实测压力 (kPa)
         fluid_temp_c: 介质当前温度 (℃)
         flow_rate_m3h: 实时流量 (m³/h)
     """
-    # 硫酸/介质 Antoine 方程饱和蒸汽压估算 (kPa)
-    # log10(P) = A - B / (C + T)
-    # 对于常规化工流体，在 45℃ 时约为 9.6 kPa
+    # 动态穿透 ERP 设备台账提取铭牌与水力额定参数 (Phase 8 消除硬编码)
+    ledger = query_equipment_ledger(equipment_id)
+    rated_params = ledger.get("rated_params", {}) if isinstance(ledger, dict) and "rated_params" in ledger else {}
+
+    # 介质饱和蒸汽压估算 (kPa)
     vapor_p_kpa = 9.58 * math.exp(0.048 * (fluid_temp_c - 20))
     
-    # 介质密度按 1800 kg/m³ (浓硫酸)，重力加速度 g=9.81
-    density = 1800.0 if "P-201" in equipment_id else 1000.0
+    # 介质密度 (kg/m³) 优先自设备台账铭牌动态提取
+    default_density = 1800.0 if "P-201" in equipment_id else 1000.0
+    density = float(rated_params.get("medium_density_kgm3", default_density))
     g = 9.81
     
-    # NPSHa = (P_in - P_v) / (rho * g) * 1000
+    # 静压压头 NPSHa = (P_in - P_v) / (rho * g) * 1000
     pressure_head = ((inlet_pressure_kpa - vapor_p_kpa) * 1000.0) / (density * g)
     
-    # 估算吸入管流速水头 v^2 / 2g (假设 DN100 管道)
-    pipe_d = 0.1 # 100mm
-    pipe_area = math.pi * (pipe_d / 2)**2
+    # 吸入管流速水头 v^2 / 2g (动态读取设备管径 DN)
+    pipe_dn_mm = float(rated_params.get("pipe_dn_mm", 100.0))
+    pipe_d = pipe_dn_mm / 1000.0 # 转换为米
+    pipe_area = math.pi * (pipe_d / 2.0)**2
     velocity = (flow_rate_m3h / 3600.0) / pipe_area
-    velocity_head = (velocity ** 2) / (2 * g)
+    velocity_head = (velocity ** 2) / (2.0 * g)
     
     npsha = round(max(0.0, pressure_head + velocity_head), 2)
-    rated_npshr = 3.2 # P-201 出厂额定必需汽蚀余量
+    # 动态读取出厂额定必需汽蚀余量 (NPSHr)
+    rated_npshr = float(rated_params.get("npsh_r", 3.2))
     safety_margin = round(npsha - rated_npshr, 2)
     
     is_cavitation = npsha < rated_npshr
@@ -45,6 +52,8 @@ def calculate_pump_cavitation(equipment_id: str, inlet_pressure_kpa: float, flui
         "rated_npshr_m": rated_npshr,
         "safety_margin_m": safety_margin,
         "vapor_pressure_kpa": round(vapor_p_kpa, 2),
+        "pipe_dn_mm": pipe_dn_mm,
+        "medium_density_kgm3": density,
         "is_cavitation_risk": is_cavitation,
         "diagnosis_severity": "CRITICAL" if safety_margin < -0.5 else ("WARNING" if safety_margin < 0.5 else "NORMAL"),
         "conclusion": "检测到入口压头严重跌破必需汽蚀余量(NPSHa < NPSHr)，叶轮吸入面正处于剧烈气泡爆破气蚀状态！" if is_cavitation else "水力汽蚀余量处于安全充裕区间。"
@@ -53,10 +62,17 @@ def calculate_pump_cavitation(equipment_id: str, inlet_pressure_kpa: float, flui
 @tool
 def analyze_vibration_fft(equipment_id: str, sample_rate: int = 10000) -> Dict[str, Any]:
     """工业机理计算：对设备的高频振动信号执行 FFT 频谱分析，诊断轴承磨损与气蚀冲击特征频段。
+    动态穿透 ERP 台账铭牌，读取出厂额定转速 (RPM) 并自动计算旋转基频 f0。
     Args:
         equipment_id: 设备编号，如 P-201
         sample_rate: 采样率 (Hz)，默认 10000
     """
+    # 动态穿透 ERP 设备台账提取出厂转速 (Phase 8 消除基频硬编码)
+    ledger = query_equipment_ledger(equipment_id)
+    rated_params = ledger.get("rated_params", {}) if isinstance(ledger, dict) and "rated_params" in ledger else {}
+    rated_rpm = float(rated_params.get("rpm", 2900.0))
+    rated_f0 = round(rated_rpm / 60.0, 1) # 出厂基频 (如 2900 RPM ~ 48.3 Hz)
+
     # 获取原始振动时序波形
     waveform = telemetry_sim.generate_vibration_waveform(sample_rate=sample_rate, duration=0.1)
     n = len(waveform)
@@ -79,19 +95,27 @@ def analyze_vibration_fft(equipment_id: str, sample_rate: int = 10000) -> Dict[s
     
     return {
         "equipment_id": equipment_id,
+        "rated_rpm": rated_rpm,
+        "rated_base_frequency_hz": rated_f0,
         "dominant_frequency_hz": dominant_freq,
         "cavitation_band_ratio_pct": cavitation_band_ratio,
         "has_high_freq_impact": has_cavitation_spectral_signature,
-        "spectrum_diagnosis": "高频宽带能量激增（2000-4500Hz超标），符合典型水力气蚀微爆微射流冲击特征！" if has_cavitation_spectral_signature else "频谱以 1X/2X 转速基频为主，未见异常高频冲击。"
+        "spectrum_diagnosis": f"高频宽带能量激增（2000-4500Hz超标），符合典型水力气蚀微爆微射流冲击特征！" if has_cavitation_spectral_signature else f"频谱以 1X({rated_f0}Hz)/2X 转速基频为主，未见异常高频冲击。"
     }
 
 @tool
 def calculate_valve_hysteresis(equipment_id: str, deadband_sample_count: int = 10) -> Dict[str, Any]:
     """工业机理计算：对控制阀执行回差 (Deadband) 与迟滞率非线性计算，研判阀杆卡阻与填料硬化。
+    动态穿透 ERP 台账铭牌，读取出厂回差容限限值。
     Args:
         equipment_id: 阀门位号，如 V-102
         deadband_sample_count: 采样点数
     """
+    # 动态穿透 ERP 设备台账提取回差允许限值 (Phase 8 消除标准限值硬编码)
+    ledger = query_equipment_ledger(equipment_id)
+    rated_params = ledger.get("rated_params", {}) if isinstance(ledger, dict) and "rated_params" in ledger else {}
+    standard_limit = float(rated_params.get("deadband_tolerance_pct", 1.0))
+
     # 从时序历史中提取最近的 SP 与 PV（优先从路由器读取，兼容仿真降级）
     hist_data = data_source_router.get_telemetry_history()
     history = hist_data.get("v102", [])[-deadband_sample_count:]
@@ -107,8 +131,7 @@ def calculate_valve_hysteresis(equipment_id: str, deadband_sample_count: int = 1
     max_error = round(float(np.max(errors)), 2)
     mean_deadband = round(float(np.mean([h["deadband_pct"] for h in history])), 2)
     
-    # GB/T 4213 工业控制阀国家标准：调节阀基本回差应 <= 1.0%
-    standard_limit = 1.0
+    # 工业控制阀国家标准容限校验
     is_jammed = mean_deadband > standard_limit
     
     return {
@@ -117,5 +140,5 @@ def calculate_valve_hysteresis(equipment_id: str, deadband_sample_count: int = 1
         "max_tracking_error_pct": max_error,
         "standard_limit_pct": standard_limit,
         "is_jammed": is_jammed,
-        "diagnosis": f"控制阀回差({mean_deadband}%)严重超出国标上限({standard_limit}%)，存在机械干摩擦与阀杆卡阻！" if is_jammed else "控制阀阶跃跟踪精度正常，处于优良状态。"
+        "diagnosis": f"控制阀回差({mean_deadband}%)严重超出国标允许上限({standard_limit}%)，存在机械干摩擦与阀杆卡阻！" if is_jammed else "控制阀阶跃跟踪精度正常，处于优良状态。"
     }

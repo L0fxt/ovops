@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BrainCircuit, 
   Send, 
@@ -46,6 +46,16 @@ export const AutonomousPlannerConsole: React.FC<AutonomousPlannerConsoleProps> =
   );
   const [expandedStep, setExpandedStep] = useState<string | null>("STEP-2");
   const [showReasoning, setShowReasoning] = useState<boolean>(true);
+  const [equipments, setEquipments] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/agent/erp/equipments')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) setEquipments(data);
+      })
+      .catch(() => {});
+  }, [investigation]);
 
   const presets = [
     {
@@ -183,6 +193,35 @@ export const AutonomousPlannerConsole: React.FC<AutonomousPlannerConsoleProps> =
           </button>
         ))}
       </div>
+
+      {/* 动态 ERP 在线设备快捷选择 */}
+      {equipments.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap flex items-center gap-1 flex-shrink-0">
+            <Database className="w-3 h-3 text-blue-500" />
+            台账设备库:
+          </span>
+          {equipments.map(eq => (
+            <button
+              key={eq.id}
+              type="button"
+              onClick={() => {
+                const isPump = eq.category === '离心泵' || eq.name?.includes('泵');
+                const newGoal = isPump
+                  ? `针对 ${eq.id} (${eq.name}) 开展水动力学汽蚀余量与高频振动 FFT 研判，穿透 ERP 匹配本地备件并生成维保闭环工单`
+                  : `针对 ${eq.id} (${eq.name}) 开展行程跟踪精度与非线性回差死区分析，检索原厂 SOP 规程并协同钉飞下发抢修工单`;
+                setGoalText(newGoal);
+                onExecuteGoal(newGoal, eq.id);
+              }}
+              title={`点击将 ${eq.id} 载入自主规划目标`}
+              className="px-2 py-0.5 text-[11px] rounded bg-zinc-100 hover:bg-blue-50 dark:bg-zinc-900 dark:hover:bg-blue-950/40 text-zinc-700 hover:text-blue-700 dark:text-zinc-300 dark:hover:text-blue-300 border border-zinc-200 dark:border-white/10 hover:border-blue-300 dark:hover:border-blue-800/40 transition-colors flex items-center gap-1 whitespace-nowrap"
+            >
+              <span className="font-mono font-semibold">{eq.id}</span>
+              <span className="opacity-80 text-[10px]">{eq.name?.split('·')[0] || eq.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 业务目标自由输入栏 */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">

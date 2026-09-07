@@ -268,3 +268,15 @@ def test_enterprise_api_connectivity(req: TestEnterpriseApiRequest):
         timeout=timeout
     )
     return client.ping()
+
+@router.post("/sync-assets")
+def sync_enterprise_assets():
+    """手动触发从企业 API 同步设备台账与备件主数据 (Phase 8)"""
+    from ovops.adapters.sync_service import asset_sync_service
+    return asset_sync_service.sync_equipments(force=True)
+
+@router.get("/sync-status")
+def get_enterprise_assets_sync_status():
+    """获取企业设备台账与备件库同步状态快照 (Phase 8)"""
+    from ovops.adapters.sync_service import asset_sync_service
+    return asset_sync_service.get_sync_status()
