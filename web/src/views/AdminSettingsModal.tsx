@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Cpu, Send, Sliders, CheckCircle2, AlertCircle, RefreshCw, Key, Globe, Shield, ExternalLink, Sparkles, Server, Activity, Wifi, Database, BookOpen, FileText } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Cpu, Send, Sliders, CheckCircle2, AlertCircle, RefreshCw, Key, Globe, Shield, ExternalLink, Sparkles, Server, Activity, Wifi, Database, BookOpen, FileText, Upload, Trash2, FileCheck } from 'lucide-react';
 
 interface AdminSettingsModalProps {
   isOpen: boolean;
@@ -28,11 +28,14 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
   const [dataSourceMode, setDataSourceMode] = useState<string>("API_FIRST");
   const [enterpriseTimeout, setEnterpriseTimeout] = useState<string>("3.0");
 
-  // RAG 知识库状态 (Phase 9)
+  // RAG 知识库状态 (Phase 9 & 文件上传)
   const [knowledgeData, setKnowledgeData] = useState<any>(null);
   const [knowledgeLoading, setKnowledgeLoading] = useState<boolean>(false);
   const [reindexing, setReindexing] = useState<boolean>(false);
   const [reindexMsg, setReindexMsg] = useState<string>("");
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [uploadMsg, setUploadMsg] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 测试与同步状态
   const [llmTestStatus, setLlmTestStatus] = useState<any>(null);
@@ -100,6 +103,54 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
       setReindexMsg("重新索引失败: " + e.message);
     } finally {
       setReindexing(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadMsg("");
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/system/knowledge/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setUploadMsg(`✅ ${data.message}`);
+        fetchKnowledge();
+      } else {
+        setUploadMsg(`❌ 上传失败: ${data.message}`);
+      }
+    } catch (err: any) {
+      setUploadMsg(`❌ 请求异常: ${err.message}`);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteDoc = async (docId: string, title: string) => {
+    if (!window.confirm(`确定要删除规程《${title}》(${docId}) 吗？`)) return;
+
+    try {
+      const res = await fetch(`/api/system/knowledge/${docId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setReindexMsg(`✅ ${data.message}`);
+        fetchKnowledge();
+      } else {
+        alert(`删除失败: ${data.message}`);
+      }
+    } catch (err: any) {
+      alert(`删除异常: ${err.message}`);
     }
   };
 
@@ -854,6 +905,40 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
                 </button>
               </div>
 
+              {/* 文件上传与 RAG 解析区域 */}
+              <div className="p-3.5 rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-blue-500/60 transition-colors bg-zinc-50/50 dark:bg-zinc-950/40 text-center">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".md,.txt,.pdf"
+                  className="hidden"
+                />
+                <div className="flex flex-col items-center justify-center gap-1.5 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                  <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                    <Upload className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                      {uploading ? '正在解析文档并构建向量索引...' : '点击上传企业设备 SOP / 维保技术手册'}
+                    </span>
+                    <p className="text-[11px] text-zinc-500 mt-0.5">
+                      支持 Markdown (.md)、纯文本 (.txt)、PDF (.pdf)，系统将自动切分工序并完成 Embedding 向量化
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {uploadMsg && (
+                <div className={`p-2.5 rounded-md text-xs font-mono border ${
+                  uploadMsg.startsWith('✅') 
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-red-50 dark:bg-red-950/30 border-red-300 text-red-700 dark:text-red-300'
+                }`}>
+                  {uploadMsg}
+                </div>
+              )}
+
               {reindexMsg && (
                 <div className="p-2.5 rounded-md bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-white/10 text-xs text-zinc-700 dark:text-zinc-300 font-mono">
                   {reindexMsg}
@@ -867,38 +952,49 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ isOpen, 
                 {knowledgeLoading ? (
                   <div className="py-6 text-center text-xs text-zinc-400">正在读取规程索引...</div>
                 ) : knowledgeData?.documents?.length > 0 ? (
-                  <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
                     {knowledgeData.documents.map((doc: any) => (
                       <div
                         key={doc.doc_id}
-                        className="p-3 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50/50 dark:bg-zinc-950/40 hover:border-blue-500/40 transition-colors"
+                        className="p-3 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50/50 dark:bg-zinc-950/40 hover:border-blue-500/40 transition-colors flex items-start justify-between gap-2"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-semibold">
-                              {doc.doc_id}
-                            </span>
-                            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                              {doc.title}
-                            </span>
-                          </div>
-                          <span className="text-[10px] text-zinc-400 font-mono">v{doc.version}</span>
-                        </div>
-                        <div className="flex items-center gap-3 mt-1.5 text-[11px] text-zinc-500">
-                          <span>品类: <strong className="text-zinc-700 dark:text-zinc-300">{doc.category}</strong></span>
-                          <span>适配机型: <span className="font-mono">{doc.equipment_pattern}</span></span>
-                          <span>步骤数: <strong>{doc.step_count} 步</strong></span>
-                          <span>来源: {doc.source}</span>
-                        </div>
-                        {doc.keywords && doc.keywords.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {doc.keywords.map((kw: string, i: number) => (
-                              <span key={i} className="px-1.5 py-0.2 rounded text-[9px] bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                                #{kw}
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-semibold">
+                                {doc.doc_id}
                               </span>
-                            ))}
+                              <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                                {doc.title}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-zinc-400 font-mono">v{doc.version}</span>
                           </div>
-                        )}
+                          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-zinc-500 flex-wrap">
+                            <span>品类: <strong className="text-zinc-700 dark:text-zinc-300">{doc.category}</strong></span>
+                            <span>适配机型: <span className="font-mono">{doc.equipment_pattern}</span></span>
+                            <span>步骤数: <strong>{doc.step_count} 步</strong></span>
+                            <span>来源: {doc.source}</span>
+                            <span>文件: <span className="font-mono">{doc.file_name}</span></span>
+                          </div>
+                          {doc.keywords && doc.keywords.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {doc.keywords.map((kw: string, i: number) => (
+                                <span key={i} className="px-1.5 py-0.2 rounded text-[9px] bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                                  #{kw}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDoc(doc.doc_id, doc.title)}
+                          className="p-1 rounded text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors flex-shrink-0"
+                          title="删除此规程"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ))}
                   </div>

@@ -120,6 +120,32 @@ class VectorKnowledgeStore:
                             fm[k] = v
         return fm, body
 
+    def _extract_text_from_pdf(self, file_path: Path) -> str:
+        """从 PDF 二进制文档中提取可读文本"""
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(str(file_path))
+            text_parts = []
+            for page in reader.pages:
+                t = page.extract_text()
+                if t:
+                    text_parts.append(t)
+            return "\n\n".join(text_parts)
+        except Exception as e:
+            print(f"[RAG] pypdf 解析失败: {e}")
+            return ""
+
+    def delete_document(self, doc_id: str) -> bool:
+        """删除指定 SOP 文档并重新构建向量索引"""
+        target_chunk = next((c for c in self.chunks if c.doc_id == doc_id), None)
+        if target_chunk and target_chunk.file_path:
+            p = Path(target_chunk.file_path)
+            if p.exists():
+                p.unlink()
+            self.reindex()
+            return True
+        return False
+
     def reindex(self):
         """扫描知识规程目录，重新解析切片并构建向量特征索引"""
         t0 = time.time()
@@ -127,17 +153,34 @@ class VectorKnowledgeStore:
         if not self.sops_dir.exists():
             self.sops_dir.mkdir(parents=True, exist_ok=True)
 
-        # 1. 扫描所有 .md 文件
+        # 1. 扫描所有 .md, .txt, .pdf 文件
         all_docs = []
-        md_files = list(self.sops_dir.glob("*.md")) + list(self.sops_dir.glob("*.txt"))
+        supported_files = (
+            list(self.sops_dir.glob("*.md")) +
+            list(self.sops_dir.glob("*.txt")) +
+            list(self.sops_dir.glob("*.pdf"))
+        )
         
         doc_term_freqs = []
         corpus_terms = set()
 
-        for fpath in md_files:
+        for fpath in supported_files:
             try:
-                content = fpath.read_text(encoding="utf-8")
-                fm, body = self._parse_frontmatter(content)
+                fm = {}
+                body = ""
+                if fpath.suffix.lower() == ".pdf":
+                    body = self._extract_text_from_pdf(fpath)
+                    fm = {
+                        "id": fpath.stem.upper(),
+                        "title": fpath.stem.replace("_", " "),
+                        "category": "离心泵" if ("泵" in fpath.stem or "pump" in fpath.stem.lower()) else ("控制阀" if ("阀" in fpath.stem or "valve" in fpath.stem.lower()) else "通用"),
+                        "source": "企业导入文档",
+                        "keywords": [w for w in ["检修", "规程", "标准", "运维", "故障", "排障"] if w in body],
+                        "version": "1.0.0"
+                    }
+                else:
+                    content = fpath.read_text(encoding="utf-8")
+                    fm, body = self._parse_frontmatter(content)
 
                 # 提取步骤
                 steps = []
@@ -147,6 +190,10 @@ class VectorKnowledgeStore:
                         steps.append(line_clean.lstrip("- ").strip())
                     elif re.match(r"^\d+\.\s+【Step", line_clean):
                         steps.append(re.sub(r"^\d+\.\s+", "", line_clean))
+                    elif re.match(r"^(步骤|Step)\s*\d+[:：]", line_clean, re.IGNORECASE):
+                        steps.append(line_clean)
+                    elif re.match(r"^\d+\.\s+", line_clean) and len(line_clean) > 8:
+                        steps.append(line_clean)
 
                 if not steps:
                     # 保底按换行段落切分

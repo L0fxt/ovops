@@ -2,7 +2,7 @@ import sqlite3
 import time
 import httpx
 import datetime
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 from config.settings import settings
@@ -295,7 +295,7 @@ def list_knowledge_sops():
 
 @router.post("/knowledge/reindex")
 def reindex_knowledge_sops():
-    """手动触发全量重新扫描 Markdown SOP 规程文件并构建稠密与稀疏向量索引 (Phase 9)"""
+    """手动触发全量重新扫描 Markdown/PDF SOP 规程文件并构建稠密与稀疏向量索引 (Phase 9)"""
     from ovops.rag import vector_knowledge_store
     count = vector_knowledge_store.reindex()
     return {
@@ -304,3 +304,65 @@ def reindex_knowledge_sops():
         "last_indexed_time": vector_knowledge_store.last_indexed_time,
         "message": f"成功重新构建 {count} 篇工业 SOP 专家规程的稠密语义特征向量与 BM25 词频索引"
     }
+
+@router.post("/knowledge/upload")
+async def upload_knowledge_sop(
+    file: UploadFile = File(...),
+    category: Optional[str] = Form(None)
+):
+    """
+    上传工业 SOP / 维保手册规程文档（支持 .md, .txt, .pdf），自动落盘切分并触发 RAG 向量特征化
+    """
+    from pathlib import Path
+    from ovops.rag import vector_knowledge_store
+    
+    filename = file.filename or "uploaded_sop.md"
+    ext = Path(filename).suffix.lower()
+    if ext not in [".md", ".txt", ".pdf"]:
+        return {
+            "status": "error",
+            "message": f"不支持的文件类型: '{ext}'。请上传 Markdown (.md)、文本 (.txt) 或 PDF (.pdf) 文件。"
+        }
+        
+    sops_dir = vector_knowledge_store.sops_dir
+    sops_dir.mkdir(parents=True, exist_ok=True)
+    
+    target_path = sops_dir / filename
+    content_bytes = await file.read()
+    target_path.write_bytes(content_bytes)
+    
+    # 自动重构向量索引
+    indexed_count = vector_knowledge_store.reindex()
+    
+    # 查找刚才导入的 chunk
+    matched_chunk = next((c for c in vector_knowledge_store.chunks if Path(c.file_path).name == filename), None)
+    
+    return {
+        "status": "success",
+        "message": f"规程文档 '{filename}' 上传成功，已完成切分并构建 RAG 向量特征索引！",
+        "document": {
+            "doc_id": matched_chunk.doc_id if matched_chunk else target_path.stem,
+            "title": matched_chunk.title if matched_chunk else target_path.stem,
+            "category": matched_chunk.category if matched_chunk else (category or "通用"),
+            "step_count": len(matched_chunk.steps) if matched_chunk else 0,
+            "keywords": matched_chunk.keywords if matched_chunk else []
+        },
+        "total_documents": indexed_count
+    }
+
+@router.delete("/knowledge/{doc_id}")
+def delete_knowledge_sop(doc_id: str):
+    """删除指定 SOP 规程文档并热重构向量库"""
+    from ovops.rag import vector_knowledge_store
+    success = vector_knowledge_store.delete_document(doc_id)
+    if success:
+        return {
+            "status": "success",
+            "message": f"规程文档 {doc_id} 已成功删除，向量索引已同步热重载",
+            "total_documents": len(vector_knowledge_store.chunks)
+        }
+    return {
+        "status": "error",
+        "message": f"未找到文档编号为 {doc_id} 的知识规程"
+    }
+

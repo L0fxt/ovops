@@ -52,3 +52,46 @@ def test_reindex():
     cnt = vector_knowledge_store.reindex()
     assert cnt >= 4
     assert vector_knowledge_store.last_indexed_time is not None
+
+def test_upload_and_delete_knowledge_api():
+    """测试通过 FastAPI 上传新知识文档与删除文档"""
+    from fastapi.testclient import TestClient
+    from ovops.main import app
+    import io
+
+    client = TestClient(app)
+
+    # 1. 上传测试文档
+    sample_content = """---
+id: KB-TEST-999
+title: 测试防爆电机紧急停机预案
+category: 电机
+keywords: [电机, 停机, 预案]
+---
+# 测试防爆电机紧急停机预案
+- 【Step 1】切断高压开关柜主电源。
+- 【Step 2】执行就地机械锁死挂牌(LOTO)。
+"""
+    file_bytes = io.BytesIO(sample_content.encode("utf-8"))
+    response = client.post(
+        "/api/system/knowledge/upload",
+        files={"file": ("KB-TEST-999.md", file_bytes, "text/markdown")}
+    )
+    assert response.status_code == 200
+    res_data = response.json()
+    assert res_data["status"] == "success"
+    assert res_data["document"]["doc_id"] == "KB-TEST-999"
+
+    # 2. 验证新文档立即可被检索
+    search_res = vector_knowledge_store.search("防爆电机紧急停机切断电源", top_k=2)
+    assert any(r["sop_id"] == "KB-TEST-999" for r in search_res)
+
+    # 3. 验证删除文档
+    del_response = client.delete("/api/system/knowledge/KB-TEST-999")
+    assert del_response.status_code == 200
+    assert del_response.json()["status"] == "success"
+
+    # 4. 确认已从索引中清除
+    after_search = vector_knowledge_store.search("防爆电机紧急停机切断电源", top_k=2)
+    assert not any(r["sop_id"] == "KB-TEST-999" for r in after_search)
+
