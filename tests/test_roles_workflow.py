@@ -63,3 +63,18 @@ def test_supervisor_supply_chain_map():
         assert "永嘉" in hub["name"] or "温州" in hub["name"] or "分发中心" in hub["name"]
         assert hub["distance_km"] > 0
         assert hub["eta_minutes"] > 0
+
+def test_supervisor_dynamic_mtbf_and_mttr():
+    """验证 Phase 11 MTBF 与 MTTR 动态统计真实性"""
+    res = client.get("/api/supervisor/overview")
+    assert res.status_code == 200
+    kpis = res.json()["kpis"]
+    assert "mtbf_hours" in kpis
+    assert "mttr_hours" in kpis
+    assert kpis["mtbf_hours"] > 0
+    assert kpis["mttr_hours"] > 0
+    # 验证健康度排名根据动态评分升序排列
+    ranking = res.json()["health_ranking"]
+    assert len(ranking) >= 4
+    for i in range(len(ranking) - 1):
+        assert ranking[i]["health_score"] <= ranking[i+1]["health_score"]

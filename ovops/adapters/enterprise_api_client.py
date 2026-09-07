@@ -110,6 +110,23 @@ class EnterpriseApiClient(BaseDeviceAdapter):
         except Exception:
             return []
 
+    def get_supply_chain_hubs(self) -> List[Dict[str, Any]]:
+        """从企业供应链/ERP系统获取本地应急备品保障仓物流与库存数据 (Phase 11)"""
+        if not self.is_configured():
+            return []
+
+        url = f"{self.base_url}/supply-chain/hubs"
+        try:
+            with self._create_client() as client:
+                res = client.get(url)
+                if res.status_code == 200:
+                    data = res.json()
+                    hubs = data if isinstance(data, list) else (data.get("hubs") or data.get("list") or [])
+                    return hubs
+                return []
+        except Exception:
+            return []
+
     def ping(self) -> Dict[str, Any]:
         """测试与企业数据接口的连通性、网络延迟与数据包自校验"""
         if not self.is_configured():
