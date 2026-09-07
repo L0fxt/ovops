@@ -1,8 +1,8 @@
 import React from 'react';
+import { StepperProgress } from '../components/StepperProgress';
 import { DigitalTwinFlow } from '../components/DigitalTwinFlow';
 import { TelemetryChart } from '../components/TelemetryChart';
 import { AutonomousPlannerConsole } from '../components/AutonomousPlannerConsole';
-import { AgentInvestigationPanel } from '../components/AgentInvestigationPanel';
 import { ChannelSimulator } from '../components/ChannelSimulator';
 import { ErpTable } from '../components/ErpTable';
 
@@ -40,40 +40,49 @@ export const ControlRoomView: React.FC<ControlRoomViewProps> = ({
   equipments
 }) => {
   return (
-    <div className="space-y-5 animate-fadeIn">
-      {/* 第一层：工业流体数字孪生拓扑 */}
-      <DigitalTwinFlow p201={p201} v102={v102} faultMode={faultMode} />
+    <div className="space-y-3 sm:space-y-4 animate-fadeIn">
+      {/* Row 1: Stepper progress — closed-loop narrative */}
+      <StepperProgress
+        investigation={investigation}
+        isInvestigating={isInvestigating}
+        faultMode={faultMode}
+      />
 
-      {/* 第二层：ECharts 工业级时序监测 */}
-      <TelemetryChart historyP201={historyP201} historyV102={historyV102} theme={theme} />
-
-      {/* 第三层：智能体自主目标规划与跨平台求解中枢 */}
+      {/* Row 2: Agent Console — HERO, first thing visible, accent border */}
       <AutonomousPlannerConsole
         investigation={investigation}
         isPlanning={isInvestigating}
         onExecuteGoal={onExecuteGoal}
       />
 
-      {/* 第四层：LangGraph 智能体状态机执行与思维链 */}
-      <AgentInvestigationPanel
-        investigation={investigation}
-        isInvestigating={isInvestigating}
-      />
+      {/* Row 3: Two-column grid — Digital Twin + Channel Simulator */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
+        <div className="lg:col-span-7">
+          <DigitalTwinFlow p201={p201} v102={v102} faultMode={faultMode} />
+        </div>
+        <div className="lg:col-span-5">
+          <ChannelSimulator
+            notifications={investigation?.channel_notifications ?? []}
+            onApprove={onApprove}
+            workOrder={investigation?.work_order}
+            approvalStatus={approvalStatus}
+          />
+        </div>
+      </div>
 
-      {/* 第五层：双通道主动协同模拟舱 (钉钉 & 飞书) */}
-      <ChannelSimulator
-        notifications={investigation?.channel_notifications ?? []}
-        onApprove={onApprove}
-        workOrder={investigation?.work_order}
-        approvalStatus={approvalStatus}
-      />
-
-      {/* 第六层：ERP 核心资产与供应链穿透看板 */}
-      <ErpTable
-        workOrders={workOrders}
-        spareParts={spareParts}
-        equipments={equipments}
-      />
+      {/* Row 4: Two-column grid — Telemetry Charts + ERP Data */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
+        <div className="lg:col-span-7">
+          <TelemetryChart historyP201={historyP201} historyV102={historyV102} theme={theme} />
+        </div>
+        <div className="lg:col-span-5">
+          <ErpTable
+            workOrders={workOrders}
+            spareParts={spareParts}
+            equipments={equipments}
+          />
+        </div>
+      </div>
     </div>
   );
 };

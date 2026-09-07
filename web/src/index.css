@@ -24,3 +24,22 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #3F3F46;
 }
+
+/* Fade-in animation for view transitions */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out;
+}
+
+/* Hide scrollbar utility (horizontal scroll) */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
